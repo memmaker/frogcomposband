@@ -105,6 +105,7 @@ static bool _scroll_panel(int dx, int dy)
     int y, x;
     rect_t r = ui_map_rect();
 
+    r.cx /= UI_MAP_STEP;    /* grids */
     y = viewport_origin.y + dy;
     x = viewport_origin.x + dx;
 

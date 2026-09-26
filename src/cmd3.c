@@ -292,6 +292,8 @@ void do_cmd_locate(void)
     char    out_val[160];
     rect_t  map_rect = ui_map_rect();
 
+    map_rect.cx /= UI_MAP_STEP;    /* grids */
+
     /* Start at current panel */
     y2 = y1 = viewport_origin.y;
     x2 = x1 = viewport_origin.x;

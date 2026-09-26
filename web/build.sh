@@ -28,6 +28,9 @@ emcc -O2 -fcommon -std=gnu99 -DUSE_WEB -Isrc -w \
 	--preload-file web/stage/lib@/frogcomposband/lib
 
 cp web/index.html "$HOME/Games/rvip-tools/web/rvip-wm.js" web/frogcomposband.js "$OUT/"
+# Shockbolt tiles (Angband 4.2 lib/tiles/shockbolt/64x64.png), lossless WebP, as in
+# ~/Games/tactical-angband/web/tiles.webp
+cp web/tiles.webp "$OUT/"
 # Town music is stage 6 (sound.cfg is in the preload)
 mkdir -p "$OUT/music" && cp ../quickband/web/music/new_town.ogg "$OUT/music/"
 rm -rf web/stage

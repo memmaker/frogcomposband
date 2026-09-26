@@ -5,7 +5,7 @@
 (function () {
 	'use strict';
 
-	var TILE = 16;                 /* source tile size in 16x16.png */
+	var TILE = 64;                 /* source tile size in tiles.webp (Shockbolt) */
 		var PERSIST = ['/frogcomposband/lib/save', '/frogcomposband/lib/user', '/frogcomposband/lib/apex', '/frogcomposband/lib/bone'];
 
 	/* Term 0 main; the rest as in lib/pref/user-x11.prf */
@@ -107,6 +107,7 @@
 				if (TILE_STEPS.indexOf(s.tile) >= 0) d.tile = s.tile;
 				d.autoSplit = s.autoSplit === true;
 				d.autoTile = s.autoTile === true;
+				d.text = s.text === true;
 				if (d.autoSplit || d.autoTile) followWindow(d);
 				Object.keys(d.font).forEach(function (k) {
 					if (s.font && s.font[k] >= FONT_MIN && s.font[k] <= FONT_MAX) d.font[k] = s.font[k];
@@ -119,6 +120,7 @@
 			}
 		} catch (err) { /* no layout saved yet */ }
 		L = d;
+		renderTiles();
 		if (L.audio) { audio.sound = !!L.audio.sound; audio.music = !!L.audio.music; renderAudio(); }
 	}
 
@@ -384,6 +386,17 @@
 		updateMusic();
 	}
 
+	/* Tiles <-> text, applied by the game at its next command prompt */
+	var tilesSwitch = -1;
+	function toggleTiles() {
+		if (!tilesReady) return;
+		L.text = !L.text;
+		tilesSwitch = L.text ? 0 : 1;
+		saveLayout();
+		renderTiles();
+	}
+	function renderTiles() { $('btn-tiles').textContent = 'Tiles: ' + (L && L.text ? 'off' : 'on'); }
+
 	function renderAudio() {
 		$('btn-sound').textContent = 'Sound: ' + (audio.sound ? 'on' : 'off');
 		$('btn-music').textContent = 'Music: ' + (audio.music ? 'on' : 'off');
@@ -452,9 +465,10 @@
 			}
 		},
 
-		pict: function (t, x, y, n, ap, cp, tap, tcp) {
+		/* big: big-tile mode, the tile covers this cell and the next (main-web.c) */
+		pict: function (t, x, y, n, ap, cp, tap, tcp, big) {
 			var T = terms[t], c = T.ctx, H = Module.HEAPU8;
-			var w = T.cw * 2, h = T.ch;
+			var w = T.cw * (big ? 2 : 1), h = T.ch;
 			var sw = tiles.naturalWidth, sh = tiles.naturalHeight;
 			for (var i = 0; i < n; i++) {
 				var a = H[ap + i], k = H[cp + i];
@@ -487,6 +501,10 @@
 				c.drawImage(tiles, fx, fy, TILE, TILE, px, py, w, h);
 			}
 		},
+
+		/* Tiles button: the game asks at start and at each command prompt */
+		tilesWanted: function () { return (tilesReady && !L.text) ? 1 : 0; },
+		tilesSwitch: function () { var s = tilesSwitch; tilesSwitch = -1; return s; },
 
 		curs: function (t, x, y, w) {
 			var T = terms[t], c = T.ctx;
@@ -785,7 +803,7 @@
 	}
 	tiles.onload = function () { tilesFinished(true); };
 	tiles.onerror = function () { tilesFinished(false); };
-	tilesDone = true;   /* text only until stage 4 (tiles: Shockbolt) sets tiles.src */
+	tiles.src = 'tiles.webp';   /* Shockbolt 64x64, drawn nearest-neighbour at cell size */
 
 	document.addEventListener('keydown', onKey);
 	document.addEventListener('DOMContentLoaded', function () {
@@ -799,6 +817,7 @@
 		$('help-close').onclick = toggleHelp;
 		$('btn-zoom-in').onclick = function () { zoomMain(1); };
 		$('btn-zoom-out').onclick = function () { zoomMain(-1); };
+		$('btn-tiles').onclick = toggleTiles;
 		$('btn-sound').onclick = function () { toggleAudio('sound'); };
 		$('btn-music').onclick = function () { toggleAudio('music'); };
 		renderAudio();

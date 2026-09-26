@@ -2044,6 +2044,8 @@ extern void redraw_window(void);
    status bar is on the bottom, and quick character info is (now) on the
    right. You can query the placement with: */
 extern rect_t ui_map_rect(void);
+/* Screen columns per map grid: 2 in big-tile mode (RVIP web tiles) */
+#define UI_MAP_STEP (use_bigtile ? 2 : 1)
 extern rect_t ui_menu_rect(void);
 extern rect_t ui_doc_menu_rect(void);
 extern rect_t ui_status_bar_rect(void);

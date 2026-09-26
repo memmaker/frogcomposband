@@ -1202,6 +1202,15 @@ void map_info(int y, int x, byte *ap, char *cp, byte *tap, char *tcp)
     (*tap) = a;
     (*tcp) = c;
 
+#ifdef USE_WEB
+    /* RVIP web tiles: Shockbolt's trees and bushes are cut-outs, grass under them */
+    if (use_graphics && have_flag(f_ptr->flags, FF_PLANT))
+    {
+        (*tap) = f_info[feat_grass].x_attr[F_LIT_STANDARD];
+        (*tcp) = f_info[feat_grass].x_char[F_LIT_STANDARD];
+    }
+#endif
+
     /* Save the info */
     (*ap) = a;
     (*cp) = c;
@@ -1733,7 +1742,7 @@ void prt_map(void)
 
     for (uip.y = map_rect.y; uip.y < map_rect.y + map_rect.cy; uip.y++)
     {
-        for (uip.x = map_rect.x; uip.x < map_rect.x + map_rect.cx; uip.x++)
+        for (uip.x = map_rect.x; uip.x + UI_MAP_STEP <= map_rect.x + map_rect.cx; uip.x += UI_MAP_STEP)
         {
             point_t cp = ui_pt_to_cave_pt(uip);
             byte a, ta;

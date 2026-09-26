@@ -3419,6 +3419,7 @@ point_t ui_pt_to_cave_pt(point_t pt)
 {
     rect_t  r = ui_map_rect();
     point_t v = point_subtract(pt, rect_topleft(r));
+    v.x /= UI_MAP_STEP;
     return point_add(viewport_origin, v);
 }
 
@@ -3431,6 +3432,7 @@ point_t cave_pt_to_ui_pt(point_t pt)
 {
     rect_t  r = ui_map_rect();
     point_t v = point_subtract(pt, viewport_origin);
+    v.x *= UI_MAP_STEP;
     return point_add(rect_topleft(r), v);
 }
 
@@ -3443,7 +3445,7 @@ bool cave_pt_is_visible(point_t pt)
 {
     point_t ui = cave_pt_to_ui_pt(pt);
     rect_t  r = ui_map_rect();
-    return rect_contains_pt(r, ui.x, ui.y);
+    return rect_contains_pt(r, ui.x + UI_MAP_STEP - 1, ui.y) && rect_contains_pt(r, ui.x, ui.y);
 }
 
 bool cave_xy_is_visible(int x, int y)
@@ -3532,6 +3534,8 @@ bool viewport_scroll(int dy, int dx)
     int y, x;
     rect_t r = ui_map_rect();
 
+    r.cx /= UI_MAP_STEP;    /* grids */
+
     /* Apply the motion */
     y = viewport_origin.y + dy * r.cy / 2;
     x = viewport_origin.x + dx * r.cx / 2;
@@ -3580,6 +3584,7 @@ void viewport_verify_aux(u32b options)
     {
         point_t c = rect_center(r);
         point_t d = point_subtract(p, c);
+        d.x /= UI_MAP_STEP;
         o = point_add(o, d);
     }
     else
@@ -3588,11 +3593,12 @@ void viewport_verify_aux(u32b options)
             o.y += r.cy/2;
         else if (p.y < r.y + 2)
             o.y -= r.cy/2;
-        if (p.x > r.x + r.cx - 4)
-            o.x += r.cx/2;
-        else if (p.x < r.x + 4)
-            o.x -= r.cx/2;
+        if (p.x > r.x + r.cx - 4 * UI_MAP_STEP)
+            o.x += r.cx/2/UI_MAP_STEP;
+        else if (p.x < r.x + 4 * UI_MAP_STEP)
+            o.x -= r.cx/2/UI_MAP_STEP;
     }
+    r.cx /= UI_MAP_STEP;    /* grids */
     if (o.x > cur_wid - 3*r.cx/4) o.x = cur_wid - 3*r.cx/4;
     if (o.y > cur_hgt - 3*r.cy/4) o.y = cur_hgt - 3*r.cy/4;
     if (o.x < -r.cx/4) o.x = -r.cx/4;
@@ -4064,7 +4070,7 @@ static void target_set_prepare(int mode)
     /* Scan the current panel */
     for (uip.y = map_rect.y; uip.y < map_rect.y + map_rect.cy; uip.y++)
     {
-        for (uip.x = map_rect.x; uip.x < map_rect.x + map_rect.cx; uip.x++)
+        for (uip.x = map_rect.x; uip.x < map_rect.x + map_rect.cx; uip.x += UI_MAP_STEP)
         {
             point_t cp = ui_pt_to_cave_pt(uip);
             cave_type *c_ptr;
@@ -4637,6 +4643,8 @@ bool target_set(int mode)
 
     cave_type *c_ptr;
     rect_t     map_rect = ui_map_rect();
+
+    map_rect.cx /= UI_MAP_STEP;    /* grids */
 
 
     /* Cancel target */
@@ -5674,6 +5682,8 @@ bool tgt_pt(int *x_ptr, int *y_ptr, int rng)
     int d, x, y, n = 0;
     bool success = FALSE;
     rect_t map_rect = ui_map_rect();
+
+    map_rect.cx /= UI_MAP_STEP;    /* grids */
 
     x = px;
     y = py;

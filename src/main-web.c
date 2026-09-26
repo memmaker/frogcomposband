@@ -47,9 +47,19 @@ EM_JS(void, js_curs, (int t, int x, int y, int w), {
 	Module.qb.curs(t, x, y, w);
 });
 
+/* big = 1 in big-tile mode: the tile covers this cell and the next one */
 EM_JS(void, js_pict, (int t, int x, int y, int n, const byte *ap, const char *cp,
-                      const byte *tap, const char *tcp), {
-	Module.qb.pict(t, x, y, n, ap, cp, tap, tcp);
+                      const byte *tap, const char *tcp, int big), {
+	Module.qb.pict(t, x, y, n, ap, cp, tap, tcp, big);
+});
+
+/* Tiles (1) or text (0) as the page's Tiles button says; -1: no change */
+EM_JS(int, js_tiles_wanted, (void), {
+	return Module.qb.tilesWanted();
+});
+
+EM_JS(int, js_tiles_switch, (void), {
+	return Module.qb.tilesSwitch();
 });
 
 EM_JS(void, js_fresh, (int t), {
@@ -174,6 +184,8 @@ static void web_apply_layout(void)
 }
 
 
+static void web_switch_graphics(int on);
+
 /* Move queued browser input into the main term's key queue */
 static int web_pump(void)
 {
@@ -189,6 +201,18 @@ static int web_pump(void)
 		/* No mouse support in this variant */
 		if (k != 0x10000) Term_keypress(k);
 		got = 1;
+	}
+
+	/* Tiles <-> text: only while waiting for a command */
+	if (inkey_flag && character_generated && !got)
+	{
+		int on = js_tiles_switch();
+
+		if ((on >= 0) && (on != (use_graphics != GRAPHICS_NONE)))
+		{
+			web_switch_graphics(on);
+			got = 1;
+		}
 	}
 
 	/* Safe autosave: only while waiting for a command */
@@ -302,8 +326,35 @@ static errr Term_text_web(int x, int y, int n, byte a, cptr s)
 static errr Term_pict_web(int x, int y, int n, const byte *ap, const char *cp,
                           const byte *tap, const char *tcp)
 {
-	js_pict(web_idx(), x, y, n, ap, cp, tap, tcp);
+	/* A map tile in big-tile mode: the next cell holds the pad (AF_BIGTILE2) */
+	int big = use_bigtile && (x + 1 < Term->wid) &&
+	          (Term->scr->a[y][x + 1] == 0xF0) && ((byte)Term->scr->c[y][x + 1] == 0xFF);
+
+	js_pict(web_idx(), x, y, n, ap, cp, tap, tcp, big);
 	return (0);
+}
+
+
+/* Shockbolt tiles (lib/pref/graf-shb.prf) in big-tile mode, or text */
+static void web_graphics(int on)
+{
+	use_graphics = on;
+	arg_graphics = on ? GRAPHICS_SHOCKBOLT : GRAPHICS_NONE;
+	ANGBAND_GRAF = on ? "shb" : "ascii";
+	arg_bigtile = on;
+}
+
+/* The page's Tiles button, applied at the command prompt */
+static void web_switch_graphics(int on)
+{
+	term *old = Term;
+
+	web_graphics(on);
+	Term_activate(&web_term[0]);
+	Term_resize(Term->wid, Term->hgt);	/* takes arg_bigtile, remaps the panel */
+	reset_visuals();
+	do_cmd_redraw();
+	Term_activate(old);
 }
 
 
@@ -342,6 +393,10 @@ errr init_web(int argc, char **argv)
 	}
 
 	web_react();
+
+	/* Shockbolt tiles unless the page says text */
+	web_graphics(js_tiles_wanted());
+	use_bigtile = arg_bigtile;
 
 	for (i = 0; i < WEB_TERMS; i++)
 	{
