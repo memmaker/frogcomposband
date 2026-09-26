@@ -450,3 +450,29 @@
 - Links: play https://ruzzoli.de/roguelikes/frogcomposband/, repo
   https://github.com/memmaker/frogcomposband, upstream
   https://github.com/sulkasormi/frogcomposband. Shrine og block by hand.
+
+### Stage 8 (shrine): done 2026-09-26
+- Shrine: https://ruzzoli.de/roguelikes/shrine/frogcomposband.html (index
+  `e1775e7` "Add FrogComposband shrine"): manual.html (all 72 `lib/help/*.txt`
+  except version/vers_old, `<color:x>` → coloured spans, `<topic>` anchors,
+  `<link>` → in-page links; 2 dangling upstream links: `birth.txt#Skills`,
+  `rings.txt#Absorption`), changelog.txt (`version.txt` + `vers_old.txt`),
+  credits.txt, license.txt (Angband notice + dual GPL2 in `randname.c`,
+  `main-sdl.c`). Converter: kept only in the agent scratchpad (rerun = re-derive).
+  Card Info button, tree ✦ live; game title already linked since stage 5
+  (`web/index.html` unchanged, no game redeploy).
+- Tree fixed: new Chengband node (2010 · Kousky, Zhang, Levy) between
+  Hengband and PosChengband; PosChengband 2012, ComPosband 2017. Sources:
+  Chengband beta 0.0.12 mail 2010-11-18 (groups.google.com/g/chengband-discussion),
+  "PosChengband is born" 2012-12-26 ("complete overhaul of Chengband",
+  sites.google.com/site/poschengband), Gwilim Owen's first commits here
+  2017-10-31 and ComPosband forum thread Nov 2017, credits.txt.
+- Manual: in-game help is the manual (copied). Walkthrough: none exists;
+  page links the newbie thread on angband.live, yasd.fans online help,
+  angband.live ladder, in-game Newbie Guide/FAQ/avoid.
+- Cheats: `^W`/`^A` refuse ("not permitted") until option
+  `allow_debug_opts` is on (`!` `Y:allow_debug_opts` works); then ^W asks
+  y/n → "Wizard" on sidebar, ^A j → "Jump which dungeon" prompt. Tested
+  locally (own tab), IDBFS `/frogcomposband/lib/*` deleted on localhost:8791.
+
+### Next: stage 9 (graveyard + leaderboard)
