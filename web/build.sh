@@ -31,6 +31,8 @@ cp web/index.html "$HOME/Games/rvip-tools/web/rvip-wm.js" web/frogcomposband.js 
 # Shockbolt tiles (Angband 4.2 lib/tiles/shockbolt/64x64.png), lossless WebP, as in
 # ~/Games/tactical-angband/web/tiles.webp
 cp web/tiles.webp "$OUT/"
+# Help: stub until stage 6 (make-help.py)
+echo '<h2>FrogComposband</h2><p>The full guide comes with the docs (stage 6). In-game help: <kbd>?</kbd>. Command menu: <kbd>Enter</kbd>. Explore: <kbd>X</kbd>.</p>' > "$OUT/help.html"
 # Town music is stage 6 (sound.cfg is in the preload)
 mkdir -p "$OUT/music" && cp ../quickband/web/music/new_town.ogg "$OUT/music/"
 rm -rf web/stage

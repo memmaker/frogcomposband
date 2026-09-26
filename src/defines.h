@@ -2443,7 +2443,7 @@ enum {
 #define PW_OBJECT       0x00000200     /* Display object recall */
 #define PW_DUNGEON      0x00000400     /* Display dungeon view */
 #define PW_SNAPSHOT     0x00000800     /* Display snap-shot */
-/* xxx */
+#define PW_PLAYER       0x00001000     /* Display character (first sheet page) */
 /* xxx */
 #define PW_BORG_1       0x00004000     /* Display borg messages */
 #define PW_BORG_2       0x00008000     /* Display borg status */

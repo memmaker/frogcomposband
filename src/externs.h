@@ -1368,6 +1368,7 @@ extern bool display_origin(object_type *o_ptr, doc_ptr doc);
 
 /* py_info.c */
 extern void py_display(void);
+extern void fix_player(void);
 extern void py_display_birth(void);
 extern void py_display_spells(doc_ptr doc, power_info *table, int ct);
 extern void py_display_spells_aux(doc_ptr doc, power_info *table, int ct);

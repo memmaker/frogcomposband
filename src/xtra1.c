@@ -5650,6 +5650,11 @@ void redraw_stuff(void)
     /* Character is in "icky" mode, no screen updates */
     if (character_icky) return;
 
+    /* Character window */
+    if (p_ptr->redraw & (PR_LEV | PR_EXP | PR_STATS | PR_ARMOR | PR_HP | PR_MANA |
+                         PR_GOLD | PR_EQUIPPY | PR_BASIC | PR_WIPE))
+        p_ptr->window |= PW_PLAYER;
+
     /* Laziness ... */
     if ((p_ptr->redraw & PR_HP) && display_hp_bar)
         p_ptr->redraw |= PR_HEALTH_BARS;
@@ -5880,6 +5885,12 @@ void window_stuff(void)
     {
         p_ptr->window &= ~(PW_MONSTER_LIST);
         fix_monster_list();
+    }
+
+    if (p_ptr->window & PW_PLAYER)
+    {
+        p_ptr->window &= ~(PW_PLAYER);
+        fix_player();
     }
 
     /* Display object recall */

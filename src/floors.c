@@ -30,6 +30,10 @@ void init_saved_floors(bool force)
     int fd = -1;
     int mode = 0644;
 
+#ifdef USE_WEB
+    force = TRUE;   /* a page reload leaves them behind; one game per tab */
+#endif
+
 #ifdef SET_UID
 # ifdef SECURE
     /* Get "games" permissions */

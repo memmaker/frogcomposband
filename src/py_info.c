@@ -2789,6 +2789,37 @@ void py_display_character_sheet(doc_ptr doc)
     doc_insert(doc, "</style>");
 }
 
+/* Character sub-window (PW_PLAYER): page 1 of the sheet, one column if narrow */
+void fix_player(void)
+{
+    int j;
+
+    for (j = 0; j < 8; j++)
+    {
+        term *old = Term;
+        doc_ptr doc;
+
+        if (!angband_term[j] || !(window_flag[j] & PW_PLAYER)) continue;
+        Term_activate(angband_term[j]);
+        if (Term->wid >= 80)
+        {
+            doc = doc_alloc(80);
+            _build_general(doc);
+        }
+        else
+        {
+            doc = doc_alloc(40);
+            _build_general1(doc);
+            _build_general2(doc);
+        }
+        Term_clear();
+        doc_sync_term(doc, doc_range_all(doc), doc_pos_create(0, 0));
+        doc_free(doc);
+        Term_fresh();
+        Term_activate(old);
+    }
+}
+
 void py_display(void)
 {
     doc_ptr d = doc_alloc(80);

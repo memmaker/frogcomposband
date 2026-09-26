@@ -304,3 +304,60 @@
   Zangband (death → tombstone key waits → reload into a new birth).
 - `web/deploy.sh` from Zangband's, target `ruzzoli.de/roguelikes/frogcomposband/`;
   no deploy until stage 7.
+
+### Stage 5 (web page): done 2026-09-26
+- **Windows** (`rvip-wm.js`, shared copy; `web/index.html` `#t-<id>`,
+  `TERMS` in `web/frogcomposband.js`, 8 terms = `WEB_TERMS` in
+  `src/main-web.c`, the z-term maximum): 0 Map, 1 Inventory `PW_INVEN`,
+  2 Messages `PW_MESSAGE`, 3 Visible `PW_MONSTER_LIST`, 4 Recall
+  `PW_MONSTER|PW_OBJECT`, 5 Equipment `PW_EQUIP`, 6 Objects
+  `PW_OBJECT_LIST`, 7 Character `PW_PLAYER` (new: `defines.h` 0x1000,
+  `window_flag_desc[12]` "Display character" in `tables.c` so the window
+  mask accepts it; `fix_player()` in `py_info.c` draws page 1 of the
+  character sheet, one column below 80 cols; `redraw_stuff()` in `xtra1.c`
+  sets it on stat/HP/level/gold/equippy redraws). Flags from
+  `web_window_flags[]`, set in `init_web()` (before load; birth doesn't
+  touch them; a savefile brings its own). Default on: Map, Inventory,
+  Visible, Messages; Recall, Equipment, Objects, Character via Windows.
+  Spell list `PW_SPELL` is a no-op upstream (`fix_spell()` body commented
+  out, no desc): no window.
+- **Layout file** `/frogcomposband/lib/user/web-layout.json` (IDBFS; splits,
+  wm tree incl. which windows are on, zoom, fonts, titles, Tiles, audio).
+- **Temp-files prompt fixed**: `floors.c` `init_saved_floors()` forces
+  `force = TRUE` under `USE_WEB` (the leftover `0.PLAYER.Fnn` files of a
+  reload are deleted silently; one game per tab).
+- **Game end**: one path, `play_game()` end → `close_game()` (`files.c`:
+  death → `print_tomb()` key wait (RET = character sheet `show_info()`, ESC
+  skips) → scores) → `quit(NULL)` → `quit_aux` = `hook_quit` (set in
+  `init_web()`, after main.c's own) → `js_quit(msg, p_ptr->is_dead)`.
+  Dead: page syncs and reloads into a new birth. Ctrl-X: saves, "Play again"
+  overlay (reload restores). The only `exit()` calls are in `z-util.c`
+  `quit()`, after `quit_aux`.
+- **Help**: `build.sh` writes a stub `help.html` (stage 6 replaces it).
+- **`web/deploy.sh`**: Zangband's, target `ruzzoli.de/roguelikes/frogcomposband/`.
+  Dry run: "commit + push first", exit 1. **Not deployed, no repo.**
+- Tested (own tab, 127.0.0.1, 1440x900): new Beginner character → inventory,
+  messages, equipment, objects (town features, then floor items), character
+  sheet, white icky thing in Visible and Recall; gutter drag + 4 extra
+  windows on → reload → same layout; reload in the dungeon with `.F00` on
+  disk → no temp-files prompt; Ctrl-X → overlay → Play again → restored;
+  suicide (`Q y @`) → tombstone → ESC → new birth, and again with RET →
+  character sheet → ESC → new birth, windows right; Help opens/Esc closes;
+  no console errors. IDBFS `/frogcomposband/lib/*` deleted afterwards.
+  Native ASan (1 seed, 2500 new + 1500 restored keys): clean.
+- Open problems: no high-score list after death (Frog's `close_game()`
+  shows none, upstream); Character window shows only page 1 of the sheet;
+  message history of a dead character may carry into the new one; 13 MB
+  `tiles.webp` loads slowly; Ctrl-X quits with no "Press Return".
+
+### Next: stage 6 (docs + sound)
+- Sound: `sound.cfg` is already in the preload, read by `loadSoundCfg()`
+  (`web/frogcomposband.js`); `TERM_XTRA_SOUND` → `js_sound` hook in
+  `main-web.c`. Copy `~/Games/zangband/web/sounds.py` (Dubtrain wavs).
+  Sound/Music buttons exist, off by default. Commit the music file under
+  `web/music` (build.sh copies it from `../quickband/web/music/new_town.ogg`
+  now).
+- Help: `web/make-help.py` from Zangband's with `PAGE='frogcomposband.html'`,
+  `build.sh` writes `$OUT/help.html` from it (replace the stub line).
+- Docs entry under `~/Desktop/Games/Roguelikes/Docs/` with both keysets
+  (explore `X` original only; Enter menu), Tips section, Shockbolt credit.

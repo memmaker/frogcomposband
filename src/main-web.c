@@ -18,7 +18,7 @@
 
 #include <emscripten.h>
 
-#define WEB_TERMS 6		/* term 5: equipment (RVIP 5b) */
+#define WEB_TERMS 8		/* terms 1-7: see web_window_flags[] */
 
 static term web_term[WEB_TERMS];
 
@@ -113,8 +113,8 @@ EM_JS(int, js_next_event, (int at_cmd), {
 });
 
 
-EM_JS(void, js_quit, (const char *msg), {
-	Module.qb.quit(msg ? UTF8ToString(msg) : "");
+EM_JS(void, js_quit, (const char *msg, int dead), {
+	Module.qb.quit(msg ? UTF8ToString(msg) : "", dead);
 });
 
 EM_JS(void, js_plog, (const char *msg), {
@@ -370,9 +370,26 @@ static void hook_quit(cptr str)
 
 	for (i = 0; i < WEB_TERMS; i++) (void)term_nuke(&web_term[i]);
 
+	/* After death the tombstone and scores already waited for a key */
 	js_sync();
-	js_quit(str);
+	js_quit(str, p_ptr->is_dead);
 }
+
+/*
+ * What each sub-window shows (TERMS in web/frogcomposband.js).  Set here for
+ * new characters; a savefile brings its own flags.
+ */
+static const u32b web_window_flags[WEB_TERMS] =
+{
+	0,
+	PW_INVEN,					/* 1 Inventory */
+	PW_MESSAGE,					/* 2 Messages */
+	PW_MONSTER_LIST,			/* 3 Visible */
+	PW_MONSTER | PW_OBJECT,		/* 4 Recall */
+	PW_EQUIP,					/* 5 Equipment */
+	PW_OBJECT_LIST,				/* 6 Objects */
+	PW_PLAYER					/* 7 Character */
+};
 
 
 errr init_web(int argc, char **argv)
@@ -391,6 +408,8 @@ errr init_web(int argc, char **argv)
 		if (option_info[i].o_var == &center_player)
 			option_info[i].o_norm = TRUE;
 	}
+
+	for (i = 0; i < WEB_TERMS; i++) window_flag[i] = web_window_flags[i];
 
 	web_react();
 
