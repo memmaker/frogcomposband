@@ -1857,8 +1857,8 @@ static void do_cmd_macro_aux(char *buf)
     /* First key */
     i = inkey();
 
-    /* Read the pattern */
-    while (i)
+    /* Read the pattern (a key burst must not overflow buf or tmp) */
+    while (i && (n < 255))
     {
         /* Save the key */
         buf[n++] = i;
