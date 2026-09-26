@@ -3722,6 +3722,12 @@ static void _dispatch_command(int old_now_turn)
             if (!p_ptr->wild_mode) do_cmd_get_nearest();
             break;
         }
+        /* Auto-explore (RVIP) */
+        case 'X':
+        {
+            if (!p_ptr->wild_mode) do_cmd_explore();
+            break;
+        }
         /* Rest -- Arg is time */
         case 'R':
         {
@@ -4653,6 +4659,7 @@ static void process_player(void)
         /* Check for "player abort" (semi-efficiently for resting) */
         if ( running
           || travel.run
+          || auto_explore
           || command_rep
           || p_ptr->action == ACTION_REST
           || p_ptr->action == ACTION_GLITTER
@@ -4957,6 +4964,12 @@ static void process_player(void)
             energy_use = 100;
         }
 
+        /* Auto-exploring (RVIP) */
+        else if (auto_explore)
+        {
+            explore_step();
+        }
+
         /* Running */
         else if (running)
         {
@@ -4969,6 +4982,12 @@ static void process_player(void)
         {
             /* Take a step */
             travel_step();
+        }
+
+        /* Travel to stairs ended (RVIP): take them if there */
+        else if (explore_stairs)
+        {
+            explore_stairs_arrive();
         }
 
         /* Repeated command */
@@ -5260,6 +5279,9 @@ static void dungeon(bool load_game)
 
     /* Not leaving */
     p_ptr->leaving = FALSE;
+
+    /* New level: stop auto-explore, forget what it saw (RVIP) */
+    explore_new_level();
 
     /* Reset the "command" vars */
     command_cmd = 0;

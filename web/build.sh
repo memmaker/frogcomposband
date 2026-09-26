@@ -8,6 +8,7 @@ rm -rf "$OUT" web/stage && mkdir -p "$OUT" web/stage/lib
 
 # Game files (no X11 fonts, BMP tiles)
 for d in edit file help pref; do cp -R lib/$d web/stage/lib/; done
+mkdir -p web/stage/lib/xtra/sound && cp lib/xtra/sound/sound.cfg web/stage/lib/xtra/sound/
 mkdir -p web/stage/lib/data web/stage/lib/info web/stage/lib/save web/stage/lib/user web/stage/lib/apex web/stage/lib/bone web/stage/lib/script
 find web/stage \( -name 'Makefile*' -o -name 'delete.me' -o -name '*.vim' -o -name '*.sh' \) -delete
 
@@ -27,8 +28,7 @@ emcc -O2 -fcommon -std=gnu99 -DUSE_WEB -Isrc -w \
 	--preload-file web/stage/lib@/frogcomposband/lib
 
 cp web/index.html "$HOME/Games/rvip-tools/web/rvip-wm.js" web/frogcomposband.js "$OUT/"
-# Sound effects and town music are stage 6; the page fetches sound.cfg
-mkdir -p "$OUT/sound" && cp lib/xtra/sound/sound.cfg "$OUT/sound/"
+# Town music is stage 6 (sound.cfg is in the preload)
 mkdir -p "$OUT/music" && cp ../quickband/web/music/new_town.ogg "$OUT/music/"
 rm -rf web/stage
 ls -la "$OUT"

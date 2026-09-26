@@ -5312,6 +5312,9 @@ void object_kind_track(int k_idx)
  */
 void disturb(int stop_search, int unused_flag)
 {
+    /* Cancel auto-explore (RVIP) */
+    auto_explore = FALSE;
+
     /* Cancel auto-commands */
     /* command_new = 0; */
 

@@ -82,17 +82,20 @@ This is also the command for deliberately walking into a trap.</indent>
 This command will move in the given direction, following any bends in the corridor, until you either have to make a "choice" between two directions or you are disturbed. You can configure what will disturb you by setting the disturbance options. Run requires a direction. By default <color:keypress>Shift+DIR</color> is keymapped to <color:keypress>.DIR</color>, although with the original keyset this may run into technical limitations on some platforms. If the Mogaminator or the easy auto-destroyer is active, specified objects will be picked up or destroyed.</indent>
 
   <indent><color:U>Go Up Staircase (<color:keypress><</color>)</color>
-Climbs up if you are standing on an up staircase or shaft. In the wilderness, toggles global map mode unless there are alert monsters nearby.
+Climbs up if you are standing on an up staircase or shaft; otherwise travels to the nearest known up staircase and climbs it on arrival (a disturbance stops the walk, press again to resume). In the wilderness, toggles global map mode unless there are alert monsters nearby.
 
 Unless you are playing in <color:keyword>coffee-break mode</color> or have activated the ironman_downward option, there is always at least one up staircase on every level. Going up a staircase will take you to either the surface or a new dungeon level. Note that levels are semi-persistent; they can be returned to while you remain in the dungeon (supposing up staircases exist), but are lost forever when you return to surface.</indent>
 
   <indent><color:U>Go Down Staircase (<color:keypress>></color>)</color>
-Descends if you are standing on a down staircase or shaft. In the wilderness, returns from global map to local map.
+Descends if you are standing on a down staircase or shaft; otherwise travels to the nearest known down staircase (in town: the dungeon entrance) and descends on arrival. In the wilderness, returns from global map to local map.
 
 There are always at least two staircases going down on each level, except for quest levels (which have none until the quest monster is killed) and the bottom levels of dungeons. Going down a staircase will take you to a new dungeon level (see "Go Up Staircase" for notes).</indent>
 
   <indent><color:U>Travel to Nearest Interesting Item (<color:keypress>H</color> or <color:keypress>^E</color>)</color>
 Locates and automatically travels to the nearest known item that is unidentified, either has not been pseudo-ID'd or has been sensed as an artifact or ego item, is not considered unworthy of picking up by an active Mogaminator, and to which a known route has been mapped. Convenient for quickly locating items you forgot to pick up or identify after you have otherwise a dungeon level, or after killing a high-level monster who dropped loot all over the place.</indent>
+
+  <indent><color:U>Auto-explore (<color:keypress>X</color>)</color>
+Walks, one step per turn, to the nearest unexplored part of the level or to items not yet visited; in town it explores the town. Opens closed doors but never picks locks; avoids known traps, shop entrances, lava and deep water. Stops on any new message, a visible hostile monster, a key press, without light, or when nothing is left. Original keyset only.</indent>
 
   <indent><color:U>Resume Journey (<color:keypress>J</color>) or Resume Travelling (<color:keypress>(</color>)</color>
 Resumes a previous travel that was interrupted before reaching its target. This command can also be used in the monster and object lists to start a new travel; for this purpose, the <color:keypress>J</color> key is also used by the roguelike keyset.</indent>
@@ -436,6 +439,7 @@ If you have pets, use this command to give orders or toggle pet options. See <li
                            <color:keypress>1  2  3          b  j  n</color>
   Run                     <color:keypress>SHIFT+DIR             </color>
   Travel to Interesting Item  <color:keypress>H               ^E</color>
+  Auto-explore                <color:keypress>X                 </color>
   Resume Travelling           <color:keypress>J                (</color>
 
 <color:U>Resting Commands           Original        Roguelike</color>

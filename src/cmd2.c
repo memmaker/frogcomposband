@@ -35,7 +35,8 @@ void do_cmd_go_up(void)
     /* Verify stairs */
     if (!have_flag(f_ptr->flags, FF_LESS))
     {
-        msg_print("I see no up staircase here.");
+        /* RVIP: travel to the nearest known up staircase, take it there */
+        explore_to_stairs(TRUE);
 
         return;
     }
@@ -125,7 +126,8 @@ void do_cmd_go_down(void)
     /* Verify stairs */
     if (!have_flag(f_ptr->flags, FF_MORE))
     {
-        msg_print("I see no down staircase here.");
+        /* RVIP: travel to the nearest known down staircase, take it there */
+        explore_to_stairs(FALSE);
 
         return;
     }
@@ -4111,3 +4113,316 @@ void do_cmd_get_nearest(void)
     }
 }
 
+
+
+/*
+ * RVIP auto-explore ('X'), ported from Zangband's (Quickband's pathfind.c).
+ * Walks one step per turn towards the nearest known grid next to an
+ * unknown one (known = CAVE_MARK, plus grids seen on this level), or to a
+ * seen object not yet stood on.  Stops on disturb() (keys, damage, ...), a
+ * new message (cmsg_print()), a visible hostile monster, a step that did
+ * not move, no light, or nothing left.  Never picks locks: locked/jammed
+ * doors are neither targets nor walked through.  On the surface only the
+ * current town's wilderness square is explored; never on the world map.
+ * '<' / '>' off the stairs find the nearest known staircase and travel
+ * there (travel_begin()); process_player() takes it on arrival.
+ */
+bool auto_explore = FALSE;
+
+/* Heading for stairs by travel: 1 up, -1 down, 0 none */
+int explore_stairs = 0;
+
+/* Object stood on (free bit of o_ptr->marked) */
+#define OM_EXPLORED 0x80000000
+
+/* Grids seen on this dungeon level: known must not shrink */
+static byte explore_seen[MAX_HGT][MAX_WID];
+
+void explore_new_level(void)
+{
+    auto_explore = FALSE;
+    explore_stairs = 0;
+    (void)C_WIPE(explore_seen, MAX_HGT * MAX_WID, byte);
+}
+
+/* Grid inside the area to search: the level, or the current town square */
+static bool explore_in(int y, int x)
+{
+    int wx, wy;
+
+    if (!in_bounds(y, x)) return FALSE;
+    if (!py_on_surface()) return TRUE;
+
+    /* Wilderness square of this grid (see _generate_cave() in wild.c) */
+    wx = p_ptr->wilderness_x + (x / WILD_SCROLL_CX + p_ptr->wilderness_dx) / 3;
+    wy = p_ptr->wilderness_y + (y / WILD_SCROLL_CY + p_ptr->wilderness_dy) / 3;
+    if (wx < 0 || wy < 0 || wx >= max_wild_x || wy >= max_wild_y) return FALSE;
+    return (wilderness[wy][wx].town == p_ptr->town_num);
+}
+
+static bool explore_known(int y, int x)
+{
+    if (cave[y][x].info & CAVE_MARK) return TRUE;
+    return (!py_on_surface() && explore_seen[y][x]);
+}
+
+/* What the player believes is there */
+static feature_type *explore_feat(int y, int x)
+{
+    return &f_info[get_feat_mimic(&cave[y][x])];
+}
+
+/* Door we won't open: locked or jammed (true feature, like Zangband's door fields) */
+static bool explore_locked_door(int y, int x)
+{
+    feature_type *f_ptr = &f_info[cave[y][x].feat];
+
+    return (is_closed_door(cave[y][x].feat) &&
+            (!have_flag(f_ptr->flags, FF_OPEN) || f_ptr->power));
+}
+
+static bool explore_rubble(int y, int x)
+{
+    feature_type *f_ptr = explore_feat(y, x);
+
+    return (have_flag(f_ptr->flags, FF_CAN_DIG) && have_flag(f_ptr->flags, FF_TUNNEL) &&
+            !have_flag(f_ptr->flags, FF_WALL));
+}
+
+static bool explore_passable(int y, int x)
+{
+    cave_type *c_ptr = &cave[y][x];
+    feature_type *f_ptr = explore_feat(y, x);
+
+    if (c_ptr->m_idx && m_list[c_ptr->m_idx].ml) return FALSE;
+
+    /* Known traps, shop and building entrances, harmful terrain */
+    if (have_flag(f_ptr->flags, FF_TRAP)) return FALSE;
+    if (have_flag(f_ptr->flags, FF_STORE) || have_flag(f_ptr->flags, FF_BLDG)) return FALSE;
+    if (have_flag(f_ptr->flags, FF_LAVA) || have_flag(f_ptr->flags, FF_ACID)) return FALSE;
+    if (have_flag(f_ptr->flags, FF_WATER) && have_flag(f_ptr->flags, FF_DEEP)) return FALSE;
+
+    /* Doors we may open, rubble we may dig */
+    if (is_closed_door(get_feat_mimic(c_ptr))) return TRUE;
+    if (explore_rubble(y, x)) return TRUE;
+
+    return player_can_enter(get_feat_mimic(c_ptr), 0);
+}
+
+/* Known grid next to an unknown one inside the search area */
+static bool explore_frontier(int y, int x)
+{
+    int d;
+
+    for (d = 0; d < 8; d++)
+    {
+        int yy = y + ddy_ddd[d], xx = x + ddx_ddd[d];
+
+        if (explore_in(yy, xx) && !explore_known(yy, xx)) return TRUE;
+    }
+    return FALSE;
+}
+
+/* A seen object here the player has not stood on yet */
+static bool explore_item(int y, int x)
+{
+    s16b this_o_idx;
+
+    for (this_o_idx = cave[y][x].o_idx; this_o_idx; this_o_idx = o_list[this_o_idx].next_o_idx)
+    {
+        object_type *o_ptr = &o_list[this_o_idx];
+
+        if ((o_ptr->marked & OM_FOUND) && !(o_ptr->marked & OM_EXPLORED)) return TRUE;
+    }
+    return FALSE;
+}
+
+static bool explore_is_stairs(int y, int x, int stairs)
+{
+    feature_type *f_ptr = explore_feat(y, x);
+
+    if (!explore_known(y, x) || have_flag(f_ptr->flags, FF_QUEST_ENTER)) return FALSE;
+    return have_flag(f_ptr->flags, (stairs > 0) ? FF_LESS : FF_MORE);
+}
+
+/*
+ * BFS from the player for the nearest target.  Returns FALSE when there is
+ * none; else *ty, *tx = target and *dir = first step.
+ */
+static bool explore_find(int stairs, int *ty, int *tx, int *dir, bool *locked)
+{
+    static s16b from[MAX_HGT][MAX_WID];
+    static s16b qy[MAX_HGT * MAX_WID], qx[MAX_HGT * MAX_WID];
+    int head = 0, tail = 0, y, x, d;
+
+    for (y = 0; y < cur_hgt; y++)
+        for (x = 0; x < cur_wid; x++) from[y][x] = -1;
+
+    from[py][px] = 8;
+    qy[tail] = py;
+    qx[tail++] = px;
+
+    while (head < tail)
+    {
+        bool here;
+
+        y = qy[head];
+        x = qx[head++];
+        here = (y == py && x == px);
+
+        if (stairs ? explore_is_stairs(y, x, stairs) :
+            (!here && !explore_locked_door(y, x) &&
+             (explore_frontier(y, x) || explore_item(y, x))))
+        {
+            *ty = y;
+            *tx = x;
+
+            /* Walk back to find the first step */
+            while (1)
+            {
+                d = from[y][x];
+                if (y - ddy_ddd[d] == py && x - ddx_ddd[d] == px) break;
+                y -= ddy_ddd[d];
+                x -= ddx_ddd[d];
+            }
+            *dir = d;
+            return TRUE;
+        }
+
+        /* Don't walk through doors we won't open */
+        if (!here && explore_locked_door(y, x)) continue;
+
+        for (d = 0; d < 8; d++)
+        {
+            int yy = y + ddy_ddd[d], xx = x + ddx_ddd[d];
+
+            if (!explore_in(yy, xx) || from[yy][xx] != -1) continue;
+            if (!explore_known(yy, xx)) continue;
+            if (!explore_passable(yy, xx))
+            {
+                /* A known trap in the way */
+                if (have_flag(explore_feat(yy, xx)->flags, FF_TRAP)) *locked = TRUE;
+                continue;
+            }
+            if (explore_locked_door(yy, xx) && explore_frontier(yy, xx)) *locked = TRUE;
+            from[yy][xx] = d;
+            qy[tail] = yy;
+            qx[tail++] = xx;
+        }
+    }
+    return FALSE;
+}
+
+/* One explore step (called each turn while auto_explore is set) */
+void explore_step(void)
+{
+    int y, x, d, i, oy = py, ox = px;
+    bool locked = FALSE;
+    s16b this_o_idx;
+
+    auto_explore = FALSE;
+
+    /* Stood on these objects now */
+    for (this_o_idx = cave[py][px].o_idx; this_o_idx; this_o_idx = o_list[this_o_idx].next_o_idx)
+        o_list[this_o_idx].marked |= OM_EXPLORED;
+
+    if (p_ptr->wild_mode) return;
+    if (p_ptr->confused || p_ptr->image || p_ptr->blind)
+    {
+        msg_print("You cannot explore right now.");
+        return;
+    }
+
+    /* Without light the frontier never gets seen */
+    if (!py_on_surface() && p_ptr->cur_lite <= 0)
+    {
+        msg_print("You have no light to explore by.");
+        return;
+    }
+    if (py_on_surface() && !p_ptr->town_num)
+    {
+        msg_print("There is nothing to explore here.");
+        return;
+    }
+
+    /* Remember what is known now */
+    if (!py_on_surface())
+        for (y = 0; y < cur_hgt; y++)
+            for (x = 0; x < cur_wid; x++)
+                if (cave[y][x].info & CAVE_MARK) explore_seen[y][x] = 1;
+
+    /* Never explore towards danger */
+    for (i = 1; i < m_max; i++)
+    {
+        monster_type *m_ptr = &m_list[i];
+
+        if (!m_ptr->r_idx || !m_ptr->ml) continue;
+        if (is_pet(m_ptr) || is_friendly(m_ptr)) continue;
+        if (!player_has_los_bold(m_ptr->fy, m_ptr->fx)) continue;
+        msg_print("Something is in view.");
+        return;
+    }
+
+    if (!explore_find(0, &y, &x, &d, &locked))
+    {
+        msg_print(locked ? "Only locked doors or known traps are in the way." :
+                  "Nothing left to explore.");
+        return;
+    }
+
+    y = py + ddy_ddd[d];
+    x = px + ddx_ddd[d];
+
+    /* Keep going next turn unless the step disturbs us or prints a message */
+    auto_explore = TRUE;
+
+    if (is_closed_door(cave[y][x].feat)) (void)do_cmd_open_aux(y, x);
+
+    /* Dig through rubble; its own "You dig into" messages don't stop us */
+    else if (explore_rubble(y, x))
+    {
+        if (do_cmd_tunnel_aux(y, x)) auto_explore = TRUE;
+    }
+    else
+    {
+        energy_use = 100;
+        move_player(ddd[d], always_pickup, FALSE);
+
+        /* Blocked (unseen monster, ...): stop instead of retrying forever */
+        if (py == oy && px == ox) auto_explore = FALSE;
+    }
+}
+
+/* 'X': explore */
+void do_cmd_explore(void)
+{
+    explore_step();
+}
+
+/* '<' / '>' off the right stairs: travel to the nearest known one */
+void explore_to_stairs(bool up)
+{
+    int y, x, d;
+    bool locked = FALSE;
+
+    explore_stairs = 0;
+    if (p_ptr->wild_mode) return;
+    if (!explore_find(up ? 1 : -1, &y, &x, &d, &locked))
+    {
+        msg_print(up ? "You know of no way up." : "You know of no way down.");
+        return;
+    }
+    travel_begin(TRAVEL_MODE_NORMAL, x, y);
+    if (travel.run) explore_stairs = up ? 1 : -1;
+}
+
+/* Travel to stairs ended: take them if we are on them */
+void explore_stairs_arrive(void)
+{
+    int stairs = explore_stairs;
+
+    explore_stairs = 0;
+    if (!have_flag(f_info[cave[py][px].feat].flags, (stairs > 0) ? FF_LESS : FF_MORE)) return;
+    if (stairs > 0) do_cmd_go_up();
+    else do_cmd_go_down();
+}

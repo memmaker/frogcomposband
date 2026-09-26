@@ -78,3 +78,81 @@
   autopick editor. Stairs walk can reuse `travel_begin()`.
 - Wilderness: town is part of the wilderness (`p_ptr->wild_mode` = world
   map mode, travel is disabled there); `dun_level` global, 0 = surface.
+
+### Stage 2 (explore + stairs): done 2026-09-26
+- **Explore key `X`** (original keyset; `H` is `do_cmd_get_nearest()`,
+  `` ` `` is travel). `X` was one of the keys that open Frog's own command
+  menu (`util.c` `request_command()`: Enter / `x` / `X` when the
+  `command_menu` option is on); `X` is dropped from that test, Enter and
+  `x` still open the menu. Roguelike keyset: `X` is a keymap to `n`
+  (repeat), so no explore key there.
+- Code: end of `src/cmd2.c` (port of Zangband's explore): `auto_explore`,
+  `explore_stairs`, `explore_new_level()`, `explore_find()` (BFS),
+  `explore_step()`, `do_cmd_explore()`, `explore_to_stairs()`,
+  `explore_stairs_arrive()`; prototypes in `externs.h`.
+- Hooks: `process_command()` `case 'X'` (`dungeon.c`, not in `wild_mode`);
+  `process_player()`: `auto_explore` in the key-abort check, `else if
+  (auto_explore) explore_step();` before running, `else if
+  (explore_stairs) explore_stairs_arrive();` after travel; `dungeon()`
+  calls `explore_new_level()` after `p_ptr->leaving = FALSE`; `disturb()`
+  (`cave.c`) clears `auto_explore`; `cmsg_print()` (`message.c`) clears it
+  on every new message (replaces Zangband's `message_num()` snapshot:
+  Frog's repeated messages only bump a count). `do_cmd_go_up/down()` call
+  `explore_to_stairs()` instead of "I see no ... staircase here".
+- **Known grid**: `cave[y][x].info & CAVE_MARK`, plus in the dungeon the
+  explorer's own `explore_seen[][]` (known must not shrink). Features as
+  the player sees them: `f_info[get_feat_mimic(c_ptr)]` flags.
+- Targets: known grid next to an unknown one, or a found object
+  (`OM_FOUND`) not stood on yet (free bit `0x80000000` of `o_ptr->marked`
+  = `OM_EXPLORED`). Avoids `FF_TRAP`, `FF_STORE`/`FF_BLDG`, `FF_LAVA`,
+  `FF_ACID`, deep water, visible monsters; else `player_can_enter()`.
+  Opens closed doors (`do_cmd_open_aux()`), never locked/jammed ones (true
+  feature `power` / no `FF_OPEN`); digs rubble (`do_cmd_tunnel_aux()`, its
+  "You dig" messages don't stop it). Stops: disturb, new message, visible
+  non-pet/non-friendly monster in view, step that didn't move, no light
+  (dungeon), confused/blind/hallucinating, nothing left ("Only locked doors
+  or known traps are in the way." when that is why).
+- Stairs: `explore_find()` in stairs mode (nearest known `FF_LESS`/`FF_MORE`,
+  not `FF_QUEST_ENTER`) → **`travel_begin(TRAVEL_MODE_NORMAL, x, y)`**;
+  when travel ends `explore_stairs_arrive()` takes them if stood on. A
+  monster moving in view disturbs travel each turn (one step per press).
+  Surface: explore/stairs search only the current town's wilderness
+  square (`wilderness[..].town == p_ptr->town_num`, mapping from
+  `_generate_cave()`); `<` on the surface and `>` in `wild_mode` keep
+  their world-map toggle.
+- **auto_more**: `message.c` `msg_line_flush()` never waits at `-more-`
+  under `USE_WEB` (Frog has no option; `auto_more_state` is transient).
+  Prompts (`msg_prompt`, `get_check`) still wait. Birth had no `-more-`.
+- Help: `lib/help/command.txt` (X), `commdesc.txt` (Auto-explore, `<`/`>`).
+- `sound.cfg` is now in the preload (`/frogcomposband/lib/xtra/sound/`),
+  read lazily by `loadSoundCfg()` in `web/frogcomposband.js` (a fetch of
+  `.cfg` was served as octet-stream = download prompt in the pane).
+- Tested in the browser (own tab, 127.0.0.1): town `X` ("Nothing left"),
+  `>` in town walks to the entrance and asks; dungeon: explore over many
+  presses (rooms, corridors, doors, rubble, items, trap stop, monster
+  stops, locked-door message), `>` walked to a known `>` and descended,
+  Warrens L1 `<` walked to `<` and went up; `X` on the world map does
+  nothing. Beginner mode = coffee-break: **no up staircases** (shafts), use
+  Normal game speed to test `<`. Test IDBFS databases deleted.
+- ASan (native, pty, random keys + 40x `X`, 15x `<`/`>`): 7 seeds, explore
+  messages seen; two upstream bugs fixed in `port:` commit `28c0daf2`
+  (`autopick.c` `insert_macro_line()` key burst, `cmd4.c` knowledge
+  monsters visual mode on an empty group → `r_info[-1]`), then clean.
+- Open problems: explore stops each time it walks over an item it already
+  visited ("You see ..." message); a gap in the known map (after teleport)
+  gives "You know of no way down" although a `>` is visible; reloading the
+  page without quitting leaves temp floor files → "old temporal files"
+  y/n at start (stage 5, save on unload?); no explore key in the roguelike
+  keyset.
+
+### Next: stage 3 (Enter menu + inventory)
+- Keys: `request_command()` (`util.c` ~l.3600): Enter / `x` open Frog's
+  own command menu `inkey_from_menu()` (`util.c` ~l.3414, tables
+  `menu_info[10][10]` + `special_menu_info[]`, option `command_menu`
+  default on); `pref-key.prf` has `C:0:^J` → `\r`. Then
+  `process_command()` switch in `dungeon.c`. Add `X` (explore) to the menu.
+- Template: Zangband's stage 3 (`~/Games/zangband/HANDOVER.md` "Stage 3").
+  Frog's own UI code: `menu.c`/`menu.h`, item prompts `obj_prompt.c`
+  (`obj_prompt()`), `inv.c`, `equip.c`, `quiver.c`; item commands in
+  `cmd3.c` (wear/drop/inspect), `cmd6.c` (eat/quaff/read/use), `cmd5.c`
+  (cast).

@@ -3631,7 +3631,7 @@ void request_command(int shopping)
             /* Get a command */
             cmd = inkey();
 
-            if (!shopping && command_menu && ((cmd == '\r') || (cmd == '\n') || (cmd == 'x') || (cmd == 'X'))
+            if (!shopping && command_menu && ((cmd == '\r') || (cmd == '\n') || (cmd == 'x'))  /* RVIP: 'X' is auto-explore */
                 && !keymap_act[mode][(byte)(cmd)])
                 cmd = inkey_from_menu();
         }

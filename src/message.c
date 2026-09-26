@@ -290,7 +290,12 @@ static void msg_line_sync(void)
 
 static void msg_line_flush(void)
 {
+#ifdef USE_WEB
+    /* RVIP auto_more: never wait at -more- (the Messages window keeps them) */
+    if (0)
+#else
     if (auto_more_state == AUTO_MORE_PROMPT)
+#endif
     {
         doc_insert_text(_msg_line_doc, TERM_L_BLUE, "-more-");
         msg_line_sync();
@@ -488,6 +493,9 @@ void cmsg_print(byte color, cptr msg)
     }
 
     msg_line_display(color, msg);
+
+    /* Any new message stops auto-explore (RVIP) */
+    auto_explore = FALSE;
 
     if (auto_more_state == AUTO_MORE_SKIP_ONE)
         auto_more_state = AUTO_MORE_PROMPT;

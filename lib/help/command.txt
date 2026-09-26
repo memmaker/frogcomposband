@@ -42,7 +42,7 @@ Press <color:keypress>?</color> for commands to use in the help interface itself
    <color:y>u  Use a staff</color>                          <color:y>U  Use racial/bonus power</color>
    v  Throw an item                        V  Version info
    <color:y>w  Wear/wield equipment</color>                 W  Switch ring fingers
-   <color:D>x  (unused)</color>                             <color:D>X  (unused)</color>
+   <color:D>x  (unused)</color>                             X  Auto-explore            
    <color:D>y  (unused)</color>                             <color:y>Y  Display monster list</color>
    <color:y>z  Zap a rod</color>                            Z  Inscribe an object
    !  Enter a user pref command           ^A  (special - wizard command)
