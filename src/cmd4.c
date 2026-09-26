@@ -6039,8 +6039,8 @@ static void do_cmd_knowledge_monsters(bool *need_redraw, bool visual_only, int d
 
         ch = inkey();
 
-        /* Do visual mode command if needed */
-        if (visual_mode_command(ch, &visual_list, browser_rows-1, wid - (max + 3), &attr_top, &char_left, &r_ptr->x_attr, &r_ptr->x_char, need_redraw))
+        /* Do visual mode command if needed (not on an empty group: r_info[-1]) */
+        if (mon_cnt && visual_mode_command(ch, &visual_list, browser_rows-1, wid - (max + 3), &attr_top, &char_left, &r_ptr->x_attr, &r_ptr->x_char, need_redraw))
         {
             if (direct_r_idx >= 0)
             {

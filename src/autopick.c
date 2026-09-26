@@ -5426,8 +5426,8 @@ static bool insert_macro_line(text_body_type *tb)
     /* First key */
     i = inkey();
 
-    /* Read the pattern */
-    while (i)
+    /* Read the pattern (a key burst must not overflow buf or tmp) */
+    while (i && (n < 255))
     {
         /* Save the key */
         buf[n++] = i;
