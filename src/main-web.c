@@ -126,6 +126,40 @@ EM_JS(void, js_sync, (void), {
 });
 
 
+/* Graveyard + leaderboard beacon (roguelikes-index/server/CONTRACT.md) */
+EM_JS(void, js_beacon, (const char *g, const char *ev, const char *name, const char *killer, int depth, int score, int turns, int lvl), {
+	try {
+		var p = [['g', UTF8ToString(g)], ['ev', UTF8ToString(ev)], ['name', name ? UTF8ToString(name) : ''],
+		         ['killer', killer ? UTF8ToString(killer) : ''], ['depth', depth], ['score', score], ['turns', turns], ['lvl', lvl]];
+		var q = p.filter(function (a) { return a[1] !== '' && !(a[1] < 0); })
+		         .map(function (a) { return a[0] + '=' + encodeURIComponent(a[1]); }).join('&');
+		if (window.RvipWM && RvipWM.report) RvipWM.report(q); else fetch('/roguelikes/beacon?' + q, { keepalive: true, mode: 'no-cors' }).catch(function () {});
+	} catch (e) {}
+});
+
+/* Called from close_game() (files.c) first thing when the run is over,
+   before kingly()/tombstone; suicide and signals also die ("Quitting",
+   "Interrupting", "Abortion"); a won run retiring is still a win. */
+void web_run_end(void)
+{
+	cptr k = p_ptr->died_from, ev = "death";
+	static char b[80];
+
+	if (p_ptr->total_winner) ev = "win", k = NULL;
+	else if (streq(k, "Quitting") || streq(k, "Interrupting") || streq(k, "Abortion")) ev = "quit", k = NULL;
+	else if (prefix(k, "a ")) k += 2;
+	else if (prefix(k, "an ")) k += 3;
+	else if (prefix(k, "the ") || prefix(k, "The ")) k += 4;
+	if (k && suffix(k, " while helpless"))	/* effects.c take_hit() */
+	{
+		my_strcpy(b, k, sizeof b);
+		b[strlen(b) - 15] = 0;
+		k = b;
+	}
+	js_beacon("frogcomposband", ev, player_name, k, dun_level, (int)hof_score(), (int)turn_real(game_turn), p_ptr->lev);
+}
+
+
 /* Persist the save directories (called after every save) */
 void web_sync_files(void)
 {

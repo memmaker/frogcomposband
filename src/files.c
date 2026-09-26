@@ -3463,6 +3463,10 @@ void kingly(void)
  *
  * This function is called only from "main.c" and "signals.c".
  */
+#ifdef USE_WEB
+extern void web_run_end(void);
+#endif
+
 void close_game(void)
 {
 
@@ -3487,6 +3491,10 @@ void close_game(void)
     /* Handle death */
     if (p_ptr->is_dead)
     {
+#ifdef USE_WEB
+        web_run_end();
+#endif
+
         /* Handle retirement */
         if ((p_ptr->total_winner) && ((strpos("Ripe Old Age", p_ptr->died_from)) || (strpos("Seppuku", p_ptr->died_from)))) kingly();
 

@@ -476,3 +476,28 @@
   locally (own tab), IDBFS `/frogcomposband/lib/*` deleted on localhost:8791.
 
 ### Next: stage 9 (graveyard + leaderboard)
+
+### Stage 9 (graveyard + leaderboard): done 2026-09-26
+- Hook: `files.c` `close_game()`, first thing in the `is_dead` branch
+  (before `kingly()`/tombstone) → `web_run_end()` (`#ifdef USE_WEB`) →
+  `main-web.c` `js_beacon` → `RvipWM.report`.
+- ev: `total_winner` → win (checked first: a winner's `Q` sets "Ripe Old
+  Age", Seppuku too, both stay wins); `died_from` "Quitting" (suicide
+  `Q y @`), "Interrupting"/"Abortion" (signals) → quit; else death.
+  Ctrl-X save is no run end (no beacon).
+- Fields sent: g=frogcomposband, ev, name=`player_name`, killer=`died_from`
+  with a/an/the/The and " while helpless" stripped (death only),
+  depth=`dun_level`, score=`hof_score()` (what `score_current()` stores),
+  turns=`turn_real(game_turn)` (as the score file), lvl=`p_ptr->lev`.
+  Missing: none. Beginner default name is "PLAYER" unless changed at birth.
+- Killer art: roguelikes-index `killers/make.py` `frogcomposband()`, 1388
+  PNGs from `web/tiles.webp` via `graf-shb.prf`, "the-" prefix dropped.
+- Tested (own tab, 127.0.0.1, patched fetch): suicide → `ev=quit`;
+  `!` `Y:allow_debug_opts`, `^A y`, `^A n 783` (name lookup failed, number
+  works) + melee → `ev=death&killer=Great%20Wyrm%20of%20Chaos&score=235&turns=302&lvl=7`;
+  win via a temporary build setting `total_winner` in `do_cmd_suicide()`
+  (reverted, rebuilt, quit re-checked) → `ev=win`; outbox 503 → URL with
+  id/at kept, unblock + `RvipWM.flush()` → same URL 204, outbox empty.
+  Real Serpent kill not tested. IDBFS `/frogcomposband/*` deleted.
+
+### Next: RVIP complete (stage 9 was the last)
