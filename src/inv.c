@@ -598,6 +598,8 @@ cptr inv_name(inv_ptr inv)
  * It turns out to be more convenient for inv_display() to know
  * about special equipment handling (cf describe_slots and two-handed
  * wielding). */
+obj_ptr inv_display_cursor = NULL;
+
 void inv_display(inv_ptr inv, slot_t start, slot_t stop, obj_p p, doc_ptr doc, int flags)
 {
     slot_t slot;
@@ -654,6 +656,8 @@ void inv_display(inv_ptr inv, slot_t start, slot_t stop, obj_p p, doc_ptr doc, i
                 object_desc(name, obj, OD_COLOR_CODED);
             if (flags & INV_SHOW_SLOT)
                 doc_printf(doc, " %d)", slot);
+            else if (obj == inv_display_cursor) /* RVIP: cursor */
+                doc_printf(doc, "<color:y>></color>%c)", (flags & INV_NO_LABELS) ? ' ' : inv_slot_label(inv, slot));
             else if (!(flags & INV_NO_LABELS))
                 doc_printf(doc, " %c)", inv_slot_label(inv, slot));
             doc_insert(doc, " ");

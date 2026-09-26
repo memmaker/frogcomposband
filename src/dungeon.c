@@ -5030,6 +5030,13 @@ static void process_player(void)
             }
             else poison_warning_hack = 0;
 
+            /* RVIP: reopen the item list after an item action (not in danger) */
+            if (gear_reopen && !command_new)
+            {
+                if (!hostile_in_view()) queue_raw_command((char)gear_reopen);
+                gear_reopen = 0;
+            }
+
             can_save = TRUE;
             /* Get a command (normal) */
             request_command(FALSE);
@@ -5037,6 +5044,9 @@ static void process_player(void)
 
             /* Process the command */
             process_command();
+
+            /* RVIP: an item menu's preselection is for the next command only */
+            if (!command_new) obj_prompt_preselect = NULL;
         }
 
         /* Hack -- Pack Overflow */

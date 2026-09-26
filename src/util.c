@@ -3244,312 +3244,253 @@ static char request_command_buffer[256];
 
 
 
-typedef struct
+/*** RVIP: boxed menus and the command menu on Enter (Zangband's cmd_menu()) ***/
+
+/* The next command came from a menu: it is an underlying command (no keymap) */
+static bool command_raw = FALSE;
+
+/* Run an underlying command next, whatever the keyset */
+void queue_raw_command(char cmd)
 {
-    cptr name;
-    byte cmd;
-    bool fin;
-} menu_naiyou;
+    command_new = cmd;
+    command_raw = TRUE;
+}
 
-menu_naiyou menu_info[10][10] =
+/* The key that gives underlying command cmd in the current keyset, or 0 */
+char command_key(char cmd)
 {
-    {
-        {"Magic/Special", 1, FALSE},
-        {"Action", 2, FALSE},
-        {"Items(use)", 3, FALSE},
-        {"Items(other)", 4, FALSE},
-        {"Equip", 5, FALSE},
-        {"Door", 6, FALSE},
-        {"Information", 7, FALSE},
-        {"Options", 8, FALSE},
-        {"Save/Exit/Help", 9, FALSE},
-        {"", 0, FALSE},
-    },
+    int mode = rogue_like_commands ? KEYMAP_MODE_ROGUE : KEYMAP_MODE_ORIG;
+    int k;
 
-    {
-        {"Use(m)", 'm', TRUE},
-        {"See tips(b/P)", 'b', TRUE},
-        {"Study(G)", 'G', TRUE},
-        {"Special abilities(U/O)", 'U', TRUE},
-        {"", 0, FALSE},
-        {"", 0, FALSE},
-        {"", 0, FALSE},
-        {"", 0, FALSE},
-        {"", 0, FALSE},
-        {"", 0, FALSE}
-    },
+    if (!keymap_act[mode][(byte)cmd]) return cmd;
 
+    for (k = 1; k < 256; k++)
     {
-        {"Rest(R)", 'R', TRUE},
-        {"Disarm a trap(D)", 'D', TRUE},
-        {"Search(s)", 's', TRUE},
-        {"Look(l/x)", 'l', TRUE},
-        {"Target(*)", '*', TRUE},
-        {"Dig(T/^t)", 'T', TRUE},
-        {"Go up stairs(<)", '<', TRUE},
-        {"Go down stairs(>)", '>', TRUE},
-        {"Command pets(p)", 'p', TRUE},
-        {"Toggle searching(S/#)", 'S', TRUE}
-    },
+        cptr act = keymap_act[mode][k];
 
-    {
-        {"Read a scroll(r)", 'r', TRUE},
-        {"Drink a potion(q)", 'q', TRUE},
-        {"Use a staff(u/Z)", 'u', TRUE},
-        {"Aim a wand(a/z)", 'a', TRUE},
-        {"Zap a rod(z/a)", 'z', TRUE},
-        {"Activate an equipment(A)", 'A', TRUE},
-        {"Eat(E)", 'E', TRUE},
-        {"Fire missile weapon(f/t)", 'f', TRUE},
-        {"Throw an item(v)", 'v', TRUE},
-        {"", 0, FALSE}
-    },
+        if (act && (act[0] == cmd) && !act[1]) return (char)k;
+    }
+    return 0;
+}
 
-    {
-        {"Get items(g)", 'g', TRUE},
-        {"Drop an item(d)", 'd', TRUE},
-        {"Destroy an item(k/^d)", 'k', TRUE},
-        {"Inscribe an item(Z/{)", 'Z', TRUE},
-        {"Uninscribe an item(})", '}', TRUE},
-        {"Inspect an item(I)", 'I', TRUE},
-        {"Inventory list(i)", 'i', TRUE},
-        {"Travel to item(H/^E)", 'H', TRUE},
-        {"Resume travel(J/())", 'J', TRUE},
-        {"", 0, FALSE}
-    },
-
-    {
-        {"Wear(w)", 'w', TRUE},
-        {"Take off(t/T)", 't', TRUE},
-        {"Refuel(F)", 'F', TRUE},
-        {"Equipment list(e)", 'e', TRUE},
-        {"Switch ring fingers", 'W', TRUE},
-        {"", 0, FALSE},
-        {"", 0, FALSE},
-        {"", 0, FALSE},
-        {"", 0, FALSE},
-        {"", 0, FALSE}
-    },
-
-    {
-        {"Open(o)", 'o', TRUE},
-        {"Close(c)", 'c', TRUE},
-        {"Bash a door(B/f)", 'B', TRUE},
-        {"Jam a door(j/S)", 'j', TRUE},
-        {"", 0, FALSE},
-        {"", 0, FALSE},
-        {"", 0, FALSE},
-        {"", 0, FALSE},
-        {"", 0, FALSE},
-        {"", 0, FALSE}
-    },
-
-    {
-        {"List monsters(Y/[)", 'Y', TRUE},
-        {"List objects(O/])", ']', TRUE},
-        {"Character sheet(C)", 'C', TRUE},
-        {"Full map(M)", 'M', TRUE},
-        {"Map(L/W)", 'L', TRUE},
-        {"Level feeling(^f)", KTRL('F'), TRUE},
-        {"Identify symbol(/)", '/', TRUE},
-        {"Show prev messages(^p)", KTRL('P'), TRUE},
-        {"Current time(^t/')", KTRL('T'), TRUE},
-        {"Knowledge menu(~)", '~', TRUE}
-    },
-
-    {
-        {"Set options(=)", '=', TRUE},
-        {"Interact with macros(@)", '@', TRUE},
-        {"Interact w/ visuals(%)", '%', TRUE},
-        {"Interact with colors(&)", '&', TRUE},
-        {"Enter a user pref(\")", '\"', TRUE},
-        {"Edit Mogaminator(_)", '_', TRUE},
-        {"", 0, FALSE},
-        {"", 0, FALSE},
-        {"", 0, FALSE},
-        {"", 0, FALSE}
-    },
-
-    {
-        {"Save and quit(^x)", KTRL('X'), TRUE},
-        {"Save(^s)", KTRL('S'), TRUE},
-        {"Help(?)", '?', TRUE},
-        {"Redraw(^r)", KTRL('R'), TRUE},
-        {"Take note(:)", ':', TRUE},
-        {"Dump screen dump(()", ')', TRUE},
-        {"Load screen dump())", '(', TRUE},
-        {"Version info(V)", 'V', TRUE},
-        {"Commit suicide(Q)", 'Q', TRUE},
-        {"", 0, FALSE}
-    },
-};
-
-typedef struct
+/* The same as text: "q", "^D", or "" */
+cptr command_key_str(char cmd)
 {
-    cptr name;
-    byte window;
-    byte number;
-    byte jouken;
-    byte jouken_naiyou;
-} special_menu_naiyou;
+    static char buf[3];
+    char k = command_key(cmd);
 
-#define MENU_CLASS 1
-#define MENU_WILD 2
+    buf[0] = buf[1] = buf[2] = '\0';
+    if (!k) return buf;
+    if ((byte)k < 32) { buf[0] = '^'; buf[1] = k + 64; }
+    else buf[0] = k;
+    return buf;
+}
 
-special_menu_naiyou special_menu_info[] =
+static void box_str(int x, int y, byte a, cptr s)
 {
-    {"MindCraft/Special", 0, 0, MENU_CLASS, CLASS_MINDCRAFTER},
-    {"Song/Special", 0, 0, MENU_CLASS, CLASS_BARD},
-    {"Technique/Special", 0, 0, MENU_CLASS, CLASS_SAMURAI},
-    {"Mind/Magic/Special", 0, 0, MENU_CLASS, CLASS_FORCETRAINER},
-    {"BrutalPower/Special", 0, 0, MENU_CLASS, CLASS_BERSERKER},
-    {"MirrorMagic/Special", 0, 0, MENU_CLASS, CLASS_MIRROR_MASTER},
-    {"Ninjutsu/Special", 0, 0, MENU_CLASS, CLASS_NINJA},
-    {"Ninjutsu/Special", 0, 0, MENU_CLASS, CLASS_NINJA_LAWYER},
-    {"Enter global map(<)", 2, 6, MENU_WILD, FALSE},
-    {"Enter local map(>)", 2, 7, MENU_WILD, TRUE},
-    {"", 0, 0, 0, 0},
-};
+    while (*s) Term_putch(x++, y, a, *s++);
+}
 
-static char inkey_from_menu(void)
+/*
+ * Draw a boxed menu at (x, y), exactly as big as its content (moved
+ * left/up to fit the screen).  Returns the row of the first entry.
+ */
+static int box_draw(int *px, int *py, cptr title, int n, cptr *text, int cur)
 {
-    char cmd;
-    int basey, basex;
-    int num = 0, max_num, old_num = 0;
-    int menu = 0;
-    bool kisuu;
+    int wid, hgt, w = 0, h, i, x = *px, y = *py, top;
+    char line[256];
 
-    /*if (py - panel_row_min > 10) basey = 2;
-    else*/ basey = 13;
-    basex = 15;
+    Term_get_size(&wid, &hgt);
 
-    /* Clear top line */
-    prt("", 0, 0);
+    for (i = 0; i < n; i++) w = MAX(w, (int)strlen(text[i]) + 3);
+    if (title) w = MAX(w, (int)strlen(title) + 1);
+    w = MIN(w, MIN(wid - 2, 250));
+    h = n + (title ? 1 : 0);
+
+    /* ponytail: no scrolling, every menu here is shorter than the screen */
+    if (x + w + 2 > wid) x = MAX(wid - w - 2, 0);
+    if (y + h + 2 > hgt) y = MAX(hgt - h - 2, 0);
+    top = y + 1 + (title ? 1 : 0);
+
+    for (i = 0; i < w; i++) line[i] = '-';
+    line[w] = '\0';
+    Term_putch(x, y, TERM_WHITE, '+');
+    box_str(x + 1, y, TERM_WHITE, line);
+    Term_putch(x + w + 1, y, TERM_WHITE, '+');
+    Term_putch(x, y + h + 1, TERM_WHITE, '+');
+    box_str(x + 1, y + h + 1, TERM_WHITE, line);
+    Term_putch(x + w + 1, y + h + 1, TERM_WHITE, '+');
+    for (i = 1; i <= h; i++)
+    {
+        Term_putch(x, y + i, TERM_WHITE, '|');
+        Term_erase(x + 1, y + i, w);
+        Term_putch(x + w + 1, y + i, TERM_WHITE, '|');
+    }
+
+    if (title) box_str(x + 1, y + 1, TERM_YELLOW, title);
+
+    for (i = 0; i < n; i++)
+    {
+        strnfmt(line, w + 1, "%s%s", (i == cur) ? "> " : "  ", text[i]);
+        box_str(x + 1, top + i, (i == cur) ? TERM_L_BLUE : TERM_WHITE, line);
+    }
+
+    *px = x + w + 2;
+    *py = y;
+    return top;
+}
+
+/*
+ * A boxed menu (see box_draw()).  keys[i] (0 = none) chooses entry i
+ * directly.  2/8 (arrows) move, Enter/Space/5/6 choose, Escape/0/4 go back.
+ * Returns the chosen entry or -1.
+ */
+int box_menu(int x, int y, cptr title, int n, cptr *text, const char *keys, int cur)
+{
+    int i, bx, by;
+    int k;
+
+    if (n <= 0) return -1;
+    if ((cur < 0) || (cur >= n)) cur = 0;
 
     screen_save();
 
-    while(1)
+    while (1)
     {
-        int i;
-        char sub_cmd;
-        cptr menu_name;
-        if (!menu) old_num = num;
-        put_str("+----------------------------------------------------+", basey, basex);
-        put_str("|                                                    |", basey+1, basex);
-        put_str("|                                                    |", basey+2, basex);
-        put_str("|                                                    |", basey+3, basex);
-        put_str("|                                                    |", basey+4, basex);
-        put_str("|                                                    |", basey+5, basex);
-        put_str("+----------------------------------------------------+", basey+6, basex);
+        bx = x;
+        by = y;
+        (void)box_draw(&bx, &by, title, n, text, cur);
 
-        for(i = 0; i < 10; i++)
-        {
-            int hoge;
-            if (!menu_info[menu][i].cmd) break;
-            menu_name = menu_info[menu][i].name;
-            for(hoge = 0; ; hoge++)
-            {
-                if (!special_menu_info[hoge].name[0]) break;
-                if ((menu != special_menu_info[hoge].window) || (i != special_menu_info[hoge].number)) continue;
-                switch(special_menu_info[hoge].jouken)
-                {
-                case MENU_CLASS:
-                    if (p_ptr->pclass == special_menu_info[hoge].jouken_naiyou) menu_name = special_menu_info[hoge].name;
-                    break;
-                case MENU_WILD:
-                    if (py_on_surface())
-                    {
-                        if ((byte)p_ptr->wild_mode == special_menu_info[hoge].jouken_naiyou) menu_name = special_menu_info[hoge].name;
-                    }
-                    break;
-                default:
-                    break;
-                }
-            }
-            put_str(menu_name, basey + 1 + i / 2, basex + 4 + (i % 2) * 24);
-        }
-        max_num = i;
-        kisuu = max_num % 2;
-        put_str("> ",basey + 1 + num / 2, basex + 2 + (num % 2) * 24);
+        k = inkey_special(TRUE);
 
-        /* Place the cursor on the player */
-        move_cursor_relative(py, px);
+        for (i = 0; i < n; i++)
+            if (keys && keys[i] && (k == keys[i])) break;
+        if (i < n) { cur = i; break; }
 
-        /* Get a command */
-        sub_cmd = inkey();
-        if ((sub_cmd == ' ') || (sub_cmd == 'x') || (sub_cmd == 'X') || (sub_cmd == '\r') || (sub_cmd == '\n'))
-        {
-            if (menu_info[menu][num].fin)
-            {
-                cmd = menu_info[menu][num].cmd;
-                use_menu = TRUE;
-                break;
-            }
-            else
-            {
-                menu = menu_info[menu][num].cmd;
-                num = 0;
-                basey += 2;
-                basex += 8;
-            }
-        }
-        else if ((sub_cmd == ESCAPE) || (sub_cmd == 'z') || (sub_cmd == 'Z') || (sub_cmd == '0'))
-        {
-            if (!menu)
-            {
-                cmd = ESCAPE;
-                break;
-            }
-            else
-            {
-                menu = 0;
-                num = old_num;
-                basey -= 2;
-                basex -= 8;
-                screen_load();
-                screen_save();
-            }
-        }
-        else if ((sub_cmd == '2') || (sub_cmd == 'j') || (sub_cmd == 'J'))
-        {
-            if (kisuu)
-            {
-                if (num % 2)
-                    num = (num + 2) % (max_num - 1);
-                else
-                    num = (num + 2) % (max_num + 1);
-            }
-            else num = (num + 2) % max_num;
-        }
-        else if ((sub_cmd == '8') || (sub_cmd == 'k') || (sub_cmd == 'K'))
-        {
-            if (kisuu)
-            {
-                if (num % 2)
-                    num = (num + max_num - 3) % (max_num - 1);
-                else
-                    num = (num + max_num - 1) % (max_num + 1);
-            }
-            else num = (num + max_num - 2) % max_num;
-        }
-        else if ((sub_cmd == '4') || (sub_cmd == '6') || (sub_cmd == 'h') || (sub_cmd == 'H') || (sub_cmd == 'l') || (sub_cmd == 'L'))
-        {
-            if ((num % 2) || (num == max_num - 1))
-            {
-                num--;
-            }
-            else if (num < max_num - 1)
-            {
-                num++;
-            }
-        }
+        if ((k == ESCAPE) || (k == '0') || (k == '4') || (k == SKEY_LEFT)) { cur = -1; break; }
+        if ((k == '\r') || (k == '\n') || (k == ' ') || (k == '5') || (k == '6') || (k == SKEY_RIGHT)) break;
+        if ((k == '8') || (k == SKEY_UP)) cur = (cur + n - 1) % n;
+        if ((k == '2') || (k == SKEY_DOWN)) cur = (cur + 1) % n;
     }
 
     screen_load();
-    if (!inkey_next) inkey_next = "";
 
-    return (cmd);
+    return cur;
 }
+
+/* The commands, grouped as lib/help/commdesc.txt does; cmd 0 starts a group */
+static const struct { char cmd; cptr name; } cmd_menu_list[] =
+{
+    { 0, "Inventory" },
+    { 'i', "Inventory list" }, { 'e', "Equipment list" },
+    { 'I', "Inspect an item" }, { 'g', "Get objects" },
+    { 'd', "Drop an item" }, { 'k', "Destroy an item" },
+    { 'w', "Wear/wield equipment" }, { 't', "Take off equipment" },
+    { 'W', "Swap ring fingers" },
+    { 0, "Movement" },
+    { ';', "Walk (with pickup)" }, { '-', "Walk (flip pickup)" },
+    { '.', "Run" }, { '<', "Go up staircase" }, { '>', "Go down staircase" },
+    { 'X', "Auto-explore" }, { 'H', "Travel to nearest item" },
+    { '`', "Travel to a location" }, { 'J', "Resume travelling" },
+    { 0, "Resting and searching" },
+    { ',', "Stay still (with pickup)" }, { 'R', "Rest for a period" },
+    { 's', "Search for traps/doors" }, { 'S', "Toggle search mode" },
+    { 0, "Doors and walls" },
+    { 'T', "Dig a tunnel" }, { 'o', "Open a door or chest" },
+    { 'c', "Close a door" }, { 'j', "Jam a door" },
+    { 'B', "Bash a door" }, { 'D', "Disarm a trap or chest" },
+    { '+', "Alter grid" },
+    { 0, "Spells and powers" },
+    { 'b', "Browse spells" }, { 'G', "Gain a spell" },
+    { 'm', "Cast a spell" }, { 'U', "Use a power" },
+    { 0, "Objects" },
+    { 'E', "Eat some food" }, { 'F', "Fuel your lantern/torch" },
+    { 'q', "Quaff a potion" }, { 'r', "Read a scroll" },
+    { 'A', "Activate an object" }, { 'a', "Aim a wand" },
+    { 'u', "Use a staff" }, { 'z', "Zap a rod" },
+    { '{', "Inscribe an object" }, { '}', "Uninscribe an object" },
+    { 0, "Throwing and firing" },
+    { 'f', "Fire an item" }, { 'v', "Throw an item" },
+    { '*', "Target monster or location" },
+    { 0, "Looking" },
+    { 'Y', "Monster list" }, { ']', "Object list" },
+    { 'M', "Full dungeon map" }, { 'L', "Locate player on map" },
+    { 'l', "Look around" }, { KTRL('V'), "Recenter viewport" },
+    { 0, "Messages and notes" },
+    { KTRL('F'), "Repeat level feeling" }, { KTRL('P'), "Show previous messages" },
+    { ':', "Take notes" },
+    { 0, "Game status" },
+    { 'C', "Character sheet" }, { '~', "Knowledge menu" },
+    { KTRL('Q'), "Quest status" }, { KTRL('T'), "Show the game time" },
+    { 0, "Saving and exiting" },
+    { KTRL('S'), "Save" }, { KTRL('X'), "Save and quit" },
+    { 'Q', "Quit (commit suicide)" },
+    { 0, "Options and settings" },
+    { '=', "Set options" }, { '@', "Interact with macros" },
+    { '%', "Interact with visuals" }, { '&', "Interact with colors" },
+    { '!', "Enter a user pref command" },
+    { '$', "Reload Mogaminator prefs" }, { '_', "Edit Mogaminator prefs" },
+    { 0, "Help" },
+    { '?', "Help" }, { '/', "Identify symbol" }, { 'V', "Version info" },
+    { 0, "Other" },
+    { 'p', "Command your pets" }, { KTRL('I'), "Toggle choice window" },
+    { KTRL('R'), "Redraw the screen" }, { ')', "Create screen dump" },
+};
+
+#define CMD_MENU_N  ((int)(sizeof(cmd_menu_list) / sizeof(cmd_menu_list[0])))
+
+/*
+ * The command menu: groups, then the group's commands with their keys in
+ * the current keyset.  Returns an underlying command or ESCAPE.
+ */
+static char inkey_from_menu(void)
+{
+    static int group = 0;
+    cptr gtext[32], ctext[16];
+    char gkeys[32], ckeys[16], cmds[16];
+    char gbuf[32][40], cbuf[16][60];
+    int gstart[32], ng = 0, i, j, n, bx, by;
+
+    for (i = 0; i < CMD_MENU_N; i++)
+    {
+        if (cmd_menu_list[i].cmd) continue;
+        gstart[ng] = i + 1;
+        strnfmt(gbuf[ng], sizeof(gbuf[ng]), "%c) %s", I2A(ng), cmd_menu_list[i].name);
+        gtext[ng] = gbuf[ng];
+        gkeys[ng] = I2A(ng);
+        ng++;
+    }
+
+    while (1)
+    {
+        int nw = 0;
+
+        group = box_menu(1, 1, "Commands", ng, gtext, gkeys, group);
+        if (group < 0) { group = 0; return ESCAPE; }
+
+        for (n = 0, i = gstart[group]; (i < CMD_MENU_N) && cmd_menu_list[i].cmd; i++, n++)
+            nw = MAX(nw, (int)strlen(cmd_menu_list[i].name));
+
+        for (j = 0, i = gstart[group]; j < n; i++, j++)
+        {
+            cmds[j] = cmd_menu_list[i].cmd;
+            ckeys[j] = command_key(cmds[j]);
+            strnfmt(cbuf[j], sizeof(cbuf[j]), "%-*s  %s", nw, cmd_menu_list[i].name,
+                command_key_str(cmds[j]));
+            ctext[j] = cbuf[j];
+        }
+
+        /* The group box stays under the command box */
+        screen_save();
+        bx = 1;
+        by = 1;
+        (void)box_draw(&bx, &by, "Commands", ng, gtext, group);
+        i = box_menu(bx, by + 1 + group, cmd_menu_list[gstart[group] - 1].name, n, ctext, ckeys, 0);
+        screen_load();
+        if (i >= 0) return cmds[i];
+    }
+}
+
 
 /*
  * Request a command from the user.
@@ -3618,6 +3559,10 @@ void request_command(int shopping)
 
             /* Forget it */
             command_new = 0;
+
+            /* RVIP: a command from a menu skips the keymaps */
+            if (command_raw && !inkey_next) inkey_next = "";
+            command_raw = FALSE;
         }
 
         /* Get a keypress in "command" mode */
@@ -3633,7 +3578,10 @@ void request_command(int shopping)
 
             if (!shopping && command_menu && ((cmd == '\r') || (cmd == '\n') || (cmd == 'x'))  /* RVIP: 'X' is auto-explore */
                 && !keymap_act[mode][(byte)(cmd)])
+            {
                 cmd = inkey_from_menu();
+                if (!inkey_next) inkey_next = ""; /* underlying command: no keymap */
+            }
         }
 
         /* Clear top line

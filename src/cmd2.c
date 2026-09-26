@@ -4316,7 +4316,7 @@ static bool explore_find(int stairs, int *ty, int *tx, int *dir, bool *locked)
 /* One explore step (called each turn while auto_explore is set) */
 void explore_step(void)
 {
-    int y, x, d, i, oy = py, ox = px;
+    int y, x, d, oy = py, ox = px;
     bool locked = FALSE;
     s16b this_o_idx;
 
@@ -4352,13 +4352,8 @@ void explore_step(void)
                 if (cave[y][x].info & CAVE_MARK) explore_seen[y][x] = 1;
 
     /* Never explore towards danger */
-    for (i = 1; i < m_max; i++)
+    if (hostile_in_view())
     {
-        monster_type *m_ptr = &m_list[i];
-
-        if (!m_ptr->r_idx || !m_ptr->ml) continue;
-        if (is_pet(m_ptr) || is_friendly(m_ptr)) continue;
-        if (!player_has_los_bold(m_ptr->fy, m_ptr->fx)) continue;
         msg_print("Something is in view.");
         return;
     }
@@ -4394,6 +4389,22 @@ void explore_step(void)
 }
 
 /* 'X': explore */
+/* RVIP: a visible monster that is neither pet nor friend is in line of sight */
+bool hostile_in_view(void)
+{
+    int i;
+
+    for (i = 1; i < m_max; i++)
+    {
+        monster_type *m_ptr = &m_list[i];
+
+        if (!m_ptr->r_idx || !m_ptr->ml) continue;
+        if (is_pet(m_ptr) || is_friendly(m_ptr)) continue;
+        if (player_has_los_bold(m_ptr->fy, m_ptr->fx)) return TRUE;
+    }
+    return FALSE;
+}
+
 void do_cmd_explore(void)
 {
     explore_step();

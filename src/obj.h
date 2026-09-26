@@ -63,6 +63,12 @@ extern bool obj_is_found(obj_ptr obj);
 extern bool obj_is_inscribed(obj_ptr obj);
 extern bool obj_is_quiver(obj_ptr obj);
 extern bool obj_is_readable_book(obj_ptr obj);
+/* RVIP: inventory item menus */
+extern bool obj_can_eat(obj_ptr obj);
+extern bool obj_can_quaff(obj_ptr obj);
+extern bool obj_can_read(obj_ptr obj);
+extern bool obj_can_wield(obj_ptr obj);
+extern int  gear_reopen;
 extern bool obj_is_rod(obj_ptr obj);
 extern bool obj_is_staff(obj_ptr obj);
 extern bool obj_is_wand(obj_ptr obj);

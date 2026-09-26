@@ -11,6 +11,10 @@ static void _display(obj_prompt_context_ptr context);
 static void _sync_doc(doc_ptr doc);
 
 static int  _basic_cmd(obj_prompt_context_ptr context, int cmd);
+static int  _preselect(obj_prompt_context_ptr context, obj_ptr want);
+static void _cursor_move(obj_prompt_context_ptr context, int dir);
+
+obj_ptr obj_prompt_preselect = NULL;
 
 void _obj_prompt_add_race_packs(obj_prompt_ptr prompt)
 {
@@ -102,6 +106,20 @@ int obj_prompt(obj_prompt_ptr prompt)
         return OP_NO_OBJECTS;
     }
 
+    /* RVIP: an inventory item menu chose the object already */
+    if (obj_prompt_preselect)
+    {
+        obj_ptr want = obj_prompt_preselect;
+
+        obj_prompt_preselect = NULL;
+        result = _preselect(&context, want);
+        if (result)
+        {
+            _context_unmake(&context);
+            return result;
+        }
+    }
+
     if (REPEAT_PULL(&tmp))
     {
         int repeat_tab = _find_tab(context.tabs, tmp);
@@ -165,6 +183,12 @@ int obj_prompt(obj_prompt_ptr prompt)
                 }
                 cmd = toupper(cmd);
             } */
+        }
+        /* RVIP: Enter/5 choose the cursor's object (unless @5 is a label) */
+        if ( (cmd == '\r' || cmd == '\n' || (cmd == '5' && !inv_label_slot(tab->inv, cmd)))
+          && context.cursor && inv_obj(tab->inv, context.cursor) )
+        {
+            cmd = inv_slot_label(tab->inv, context.cursor);
         }
         slot = inv_label_slot(tab->inv, cmd);
         if (slot)
@@ -348,7 +372,10 @@ static void _display(obj_prompt_context_ptr context)
     else if (!filter)
         filter = obj_exists; /* Hack: null filter only shows empty slots for INV_EQUIP */
 
+    _cursor_move(context, 0);
+    inv_display_cursor = context->cursor ? inv_obj(tab->inv, context->cursor) : NULL;
     inv_display(tab->inv, start, stop, filter, context->doc, context->prompt->flags);
+    inv_display_cursor = NULL;
 
     if (tab->page_ct > 1)
     {
@@ -391,6 +418,24 @@ static int _basic_cmd(obj_prompt_context_ptr context, int cmd)
 {
     switch (cmd)
     {
+    case '2': case SKEY_DOWN: /* RVIP: cursor */
+        _cursor_move(context, 1);
+        return OP_CMD_HANDLED;
+    case '8': case SKEY_UP:
+        _cursor_move(context, -1);
+        return OP_CMD_HANDLED;
+    case '6': case SKEY_RIGHT:
+        context->tab++;
+        if (context->tab == vec_length(context->tabs))
+            context->tab = 0;
+        context->cursor = 0;
+        return OP_CMD_HANDLED;
+    case '4': case SKEY_LEFT:
+        context->tab--;
+        if (context->tab < 0)
+            context->tab = vec_length(context->tabs) - 1;
+        context->cursor = 0;
+        return OP_CMD_HANDLED;
     case '-': {
         /* Legacy: In the olden days, - was used to autopick
          * the floor item. Of course, you had to do it blind
@@ -420,11 +465,13 @@ static int _basic_cmd(obj_prompt_context_ptr context, int cmd)
         context->tab++;
         if (context->tab == vec_length(context->tabs))
             context->tab = 0;
+        context->cursor = 0;
         return OP_CMD_HANDLED;
     case '\\':
         context->tab--;
         if (context->tab < 0)
             context->tab = vec_length(context->tabs) - 1;
+        context->cursor = 0;
         return OP_CMD_HANDLED;
     case '@':
         if (context->prompt->flags & INV_IGNORE_INSCRIPTIONS)
@@ -498,4 +545,74 @@ int _count_lines(cptr s)
     return ct;
 }
 
+/* RVIP: the cursor's object is on the page shown and passes the filter */
+static bool _cursor_ok(obj_prompt_context_ptr context, slot_t slot)
+{
+    obj_prompt_tab_ptr tab = vec_get(context->tabs, context->tab);
+    int                start = tab->page * context->page_size + 1;
+    int                stop = (tab->page + 1) * context->page_size;
+    obj_ptr            obj;
 
+    if (inv_loc(tab->inv) == INV_EQUIP) stop = equip_max();
+    if (slot < start || slot > stop || slot > inv_max(tab->inv)) return FALSE;
+    obj = inv_obj(tab->inv, slot);
+    if (!obj) return FALSE;
+    if (context->prompt->filter && !context->prompt->filter(obj)) return FALSE;
+    if (inv_loc(tab->inv) == INV_EQUIP && equip_is_empty_two_handed_slot(slot)) return FALSE;
+    return TRUE;
+}
+
+/* Move the cursor dir (+1/-1) objects, wrapping; 0 only makes it valid */
+static void _cursor_move(obj_prompt_context_ptr context, int dir)
+{
+    obj_prompt_tab_ptr tab = vec_get(context->tabs, context->tab);
+    int                max = inv_max(tab->inv), i;
+    slot_t             slot = context->cursor;
+
+    if (!_cursor_ok(context, slot)) { slot = 0; if (!dir) dir = 1; }
+    else if (!dir) return;
+    for (i = 0; i < max; i++)
+    {
+        slot += dir;
+        if (slot > max) slot = 1;
+        if (slot < 1) slot = max;
+        if (_cursor_ok(context, slot)) { context->cursor = slot; return; }
+    }
+    context->cursor = 0;
+}
+
+/* RVIP: take want if a tab offers it: 0 = not offered, else the result */
+static int _preselect(obj_prompt_context_ptr context, obj_ptr want)
+{
+    int i;
+
+    for (i = 0; i < vec_length(context->tabs); i++)
+    {
+        obj_prompt_tab_ptr tab = vec_get(context->tabs, i);
+        slot_t             slot;
+
+        for (slot = 1; slot <= inv_max(tab->inv); slot++)
+        {
+            if (inv_obj(tab->inv, slot) != want) continue;
+
+            /* Handler prompts (inspect, inscribe) act on the label key */
+            if (context->prompt->cmd_handler)
+            {
+                int r;
+
+                context->tab = i;
+                inv_calculate_labels(tab->inv, 1, context->page_size, context->prompt->flags);
+                context->doc = doc_alloc(MIN(80, ui_map_rect().cx));
+                Term_save();
+                r = context->prompt->cmd_handler(context, inv_slot_label(tab->inv, slot));
+                Term_load();
+                if (r == OP_CMD_DISMISS) return OP_CUSTOM;
+                if (r == OP_CMD_HANDLED) return OP_CANCELED;
+            }
+            if (!obj_confirm_choice(want)) return OP_CANCELED;
+            context->prompt->obj = want;
+            return OP_SUCCESS;
+        }
+    }
+    return 0;
+}

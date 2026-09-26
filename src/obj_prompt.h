@@ -62,6 +62,7 @@ struct obj_prompt_context_s
     int            tab;
     doc_ptr        doc;
     int            page_size;
+    slot_t         cursor; /* RVIP: highlighted slot of the current tab, 0 = none */
 };
 
 /* Prompt for an object, but we are very customizable.
@@ -70,6 +71,8 @@ struct obj_prompt_context_s
  * if (prompt.obj) to see if the user selected an object
  * and just ignore the return code. */
 extern int obj_prompt(obj_prompt_ptr prompt);
+/* RVIP: the next obj_prompt() takes this object if it offers it */
+extern obj_ptr obj_prompt_preselect;
 extern void obj_prompt_add_special_packs(obj_prompt_ptr prompt);
 enum {
     OP_NO_OBJECTS = 1,

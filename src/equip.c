@@ -2136,3 +2136,6 @@ void ring_finger_swap_ui(slot_t f1, slot_t f2)
         return;
     }
 }
+
+/* RVIP: the wield test, for the inventory item menus */
+bool obj_can_wield(obj_ptr obj) { return _can_wield(obj); }

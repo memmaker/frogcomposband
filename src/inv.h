@@ -104,6 +104,7 @@ extern void inv_display(
     int flags                  /* TODO: Display Fail Rates or Object Values ... */
 );
 extern char    inv_slot_label(inv_ptr inv, slot_t slot);
+extern obj_ptr inv_display_cursor; /* RVIP: inv_display() marks it with '>' */
 extern slot_t  inv_label_slot(inv_ptr inv, char label);
 /* Normally, you don't need to call this since you will usually display()
  * before inspecting labels. Except for REPEAT_PULL() ... sigh */

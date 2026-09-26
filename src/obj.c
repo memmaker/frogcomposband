@@ -932,6 +932,137 @@ void obj_inspect_ui(void)
         obj_display(prompt.obj);
 }
 
+/************************************************************************
+ * RVIP: item menus in the inventory/equipment list (i/e)
+ * Letter = main action, Shift+letter = drop, Ctrl+letter = examine,
+ * Enter/Space/5 = menu of every action that fits the cursor's item,
+ * + - * = main/drop/examine for the cursor's item. An action runs the
+ * game's own command (key queued past the keymaps) with the item
+ * preselected for its obj_prompt(); the list reopens afterwards.
+ ***********************************************************************/
+int gear_reopen = 0; /* 'i' or 'e': reopen that list after the action */
+
+static bool _can_refuel(obj_ptr obj)
+{
+    slot_t slot = equip_find_obj(TV_LITE, SV_ANY);
+    obj_ptr lite = slot ? equip_obj(slot) : NULL;
+
+    if (!lite) return FALSE;
+    if (lite->sval == SV_LITE_LANTERN) return obj->tval == TV_FLASK || object_is_(obj, TV_LITE, SV_LITE_LANTERN);
+    if (lite->sval == SV_LITE_TORCH) return object_is_(obj, TV_LITE, SV_LITE_TORCH);
+    return FALSE;
+}
+static bool _can_fire(obj_ptr obj) { return equip_find_first(object_is_bow) && obj_can_shoot(obj); }
+static bool _can_destroy_p(obj_ptr obj) { return obj->loc.where != INV_EQUIP || obj->rune == RUNE_SACRIFICE; }
+
+#define _P (1 << INV_PACK)
+#define _E (1 << INV_EQUIP)
+#define _Q (1 << INV_QUIVER)
+/* The same item tests and places as each command's own obj_prompt();
+ * main actions first, in the order the main action is picked. */
+static const struct { char key; cptr name; obj_p test; int where; bool main; } _gear_act[] =
+{
+    { 'E', "Eat", obj_can_eat, _P, TRUE },
+    { 'q', "Quaff", obj_can_quaff, _P, TRUE },
+    { 'r', "Read", obj_can_read, _P, TRUE },
+    { 'u', "Use", obj_is_staff, _P, TRUE },
+    { 'a', "Aim", obj_is_wand, _P, TRUE },
+    { 'z', "Zap", obj_is_rod, _P, TRUE },
+    { 'm', "Cast a spell", obj_is_readable_book, _P, TRUE },
+    { 'w', "Wear/wield", obj_can_wield, _P, TRUE },
+    { 't', "Take off", obj_exists, _E | _Q, TRUE },
+    { 'F', "Refuel", _can_refuel, _P, TRUE },
+    { 'b', "Browse", obj_is_readable_book, _P, FALSE },
+    { 'A', "Activate", obj_has_effect, _E, FALSE },
+    { 'f', "Fire", _can_fire, _P | _Q, FALSE },
+    { 'v', "Throw", obj_exists, _P | _E | _Q, FALSE },
+    { 'd', "Drop", obj_exists, _P | _E | _Q, FALSE },
+    { 'k', "Destroy", _can_destroy_p, _P | _E | _Q, FALSE },
+    { '{', "Inscribe", obj_exists, _P | _E | _Q, FALSE },
+    { '}', "Uninscribe", obj_is_inscribed, _P | _E | _Q, FALSE },
+    { 'I', "Examine", obj_exists, _P | _E | _Q, FALSE },
+};
+#define _GEAR_ACT_N ((int)(sizeof(_gear_act) / sizeof(_gear_act[0])))
+
+static bool _gear_act_ok(int i, obj_ptr obj)
+{
+    return (_gear_act[i].where & (1 << obj->loc.where)) && _gear_act[i].test(obj);
+}
+
+static char _gear_main(obj_ptr obj)
+{
+    int i;
+    for (i = 0; i < _GEAR_ACT_N && _gear_act[i].main; i++)
+        if (_gear_act_ok(i, obj)) return _gear_act[i].key;
+    return 'I';
+}
+
+/* The action menu: a box next to the list; returns a command or 0 */
+static char _gear_menu(obj_ptr obj)
+{
+    cptr  text[_GEAR_ACT_N];
+    char  keys[_GEAR_ACT_N], cmds[_GEAR_ACT_N], buf[_GEAR_ACT_N][40];
+    char  name[MAX_NLEN];
+    int   i, n = 0;
+
+    for (i = 0; i < _GEAR_ACT_N; i++)
+    {
+        if (!_gear_act_ok(i, obj)) continue;
+        cmds[n] = _gear_act[i].key;
+        keys[n] = command_key(cmds[n]);
+        strnfmt(buf[n], sizeof(buf[n]), "%-11s %s", _gear_act[i].name, command_key_str(cmds[n]));
+        text[n] = buf[n];
+        n++;
+    }
+    object_desc(name, obj, OD_OMIT_PREFIX | OD_NAME_ONLY);
+    name[30] = '\0';
+    i = box_menu(40, 2, name, n, text, keys, 0);
+    return (i < 0) ? 0 : cmds[i];
+}
+
+static int _gear_handler(obj_prompt_context_ptr context, int cmd)
+{
+    obj_prompt_tab_ptr tab = vec_get(context->tabs, context->tab);
+    obj_ptr            obj = NULL;
+    slot_t             slot;
+    char               key = 0;
+
+    if (cmd == '\r' || cmd == '\n' || cmd == ' ' || cmd == '5' || cmd == '+' || cmd == '-' || cmd == '*')
+    {
+        if (context->cursor) obj = inv_obj(tab->inv, context->cursor);
+        if (!obj) return OP_CMD_SKIPPED;
+        if (cmd == '+') key = _gear_main(obj);
+        else if (cmd == '-') key = 'd';
+        else if (cmd == '*') key = 'I';
+        else
+        {
+            key = _gear_menu(obj);
+            if (!key) return OP_CMD_HANDLED;
+        }
+    }
+    else if ((slot = inv_label_slot(tab->inv, cmd)))
+    {
+        obj = inv_obj(tab->inv, slot);
+        if (obj) key = _gear_main(obj);
+    }
+    else if (cmd < 128 && isupper(cmd) && (slot = inv_label_slot(tab->inv, tolower(cmd))))
+    {
+        obj = inv_obj(tab->inv, slot);
+        key = 'd';
+    }
+    else if (cmd >= 1 && cmd <= 26 && (slot = inv_label_slot(tab->inv, cmd + 'a' - 1)))
+    {
+        obj = inv_obj(tab->inv, slot);
+        key = 'I';
+    }
+    if (!obj || !key) return OP_CMD_SKIPPED;
+
+    obj_prompt_preselect = obj;
+    queue_raw_command(key);
+    gear_reopen = (inv_loc(tab->inv) == INV_EQUIP) ? 'e' : 'i';
+    return OP_CMD_DISMISS;
+}
+
 void gear_ui(int which)
 {
     obj_prompt_t prompt = {0};
@@ -941,7 +1072,7 @@ void gear_ui(int which)
 
     s = string_alloc_format(
         "<color:w>Carrying %d.%d pounds (<color:%c>%d%%</color> capacity).</color>\n\n"
-        "Examine which item <color:w>(<color:keypress>Esc</color> to exit)</color>?",
+        "<color:keypress>Letter</color> use, <color:keypress>Shift</color> drop, <color:keypress>Ctrl</color> examine, <color:keypress>Enter</color> menu <color:w>(<color:keypress>Esc</color> to exit)</color>",
          wgt / 10, wgt % 10, pct > 100 ? 'r' : 'G', pct);
     prompt.prompt = string_buffer(s);
     prompt.where[0] = INV_PACK;
@@ -949,7 +1080,7 @@ void gear_ui(int which)
     prompt.where[2] = INV_QUIVER;
     prompt.top_loc = which;
 
-    prompt.cmd_handler = _inspector;
+    prompt.cmd_handler = _gear_handler; /* RVIP: was _inspector */
 
     obj_prompt(&prompt);
     string_free(s);

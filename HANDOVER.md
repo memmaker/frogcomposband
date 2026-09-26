@@ -156,3 +156,70 @@
   (`obj_prompt()`), `inv.c`, `equip.c`, `quiver.c`; item commands in
   `cmd3.c` (wear/drop/inspect), `cmd6.c` (eat/quaff/read/use), `cmd5.c`
   (cast).
+
+### Stage 3 (Enter menu + inventory): done 2026-09-26
+- **Enter menu**: Frog's own `inkey_from_menu()` in `src/util.c` rewritten
+  as Zangband's `cmd_menu()` (the fixed 2-column `menu_info[10][10]` /
+  `special_menu_info[]` boxes are gone). Same call site in
+  `request_command()`: Enter / `x` (when `command_menu` is on and no keymap
+  uses the key; `pref-key.prf` `^J` → `\r` opens it too). Groups and
+  commands in `cmd_menu_list[]` as `lib/help/commdesc.txt` groups them (14
+  groups, incl. `X` explore, `<`/`>`, travel, pref/Mogaminator, `^I`).
+  Boxes `box_draw()` / `box_menu()` (sized to content, no scrolling);
+  keys of the current keyset by `command_key()` / `command_key_str()`
+  (reverse lookup in `keymap_act`; roguelike shows `^D`, `T`, `,`, `^E`;
+  explore and `W` have no roguelike key, pick them by cursor). 2/8/arrows
+  move, Enter/Space/5/6/right choose, group letter or command key chooses,
+  Esc/0/4/left back. The chosen underlying command skips the keymaps
+  (`inkey_next = ""`), runs through `process_command()`.
+- **Item menus** (`i`/`e` = `gear_ui()` in `src/obj.c`, Frog's
+  `obj_prompt()` with the new `_gear_handler()` instead of `_inspector`):
+  letter = main action (`_gear_main()`: eat, quaff, read, use, aim, zap,
+  cast, wear, take off, refuel, else examine), Shift+letter drop,
+  Ctrl+letter examine, Enter/Space/5 = `_gear_menu()` (a `box_menu()` of
+  every action in `_gear_act[]` that fits: the same item test and places as
+  the command's own `obj_prompt()`; `obj_can_eat/quaff/read()` wrappers in
+  `cmd6.c`, `obj_can_wield()` in `equip.c`), `+ - *` = main/drop/examine
+  of the cursor's item.
+- **Cursor in every item prompt** (`src/obj_prompt.c`): `context.cursor`
+  (new field in `obj_prompt.h`), `_cursor_move()` / `_cursor_ok()`, drawn
+  as `>` by `inv_display()` (`inv_display_cursor`, `inv.c`). 2/8/arrows
+  move, 4/6/arrows switch tab, Enter/5 choose (labels and `@` tags first,
+  so `@5` still works). Esc cancels; Enter without a cursor still cancels.
+- **How item actions run (queue + preselect via obj_prompt)**: the handler
+  sets `obj_prompt_preselect = obj`, `queue_raw_command(key)` (util.c:
+  `command_new` + `command_raw` → no keymap) and `gear_reopen = 'i'/'e'`,
+  then dismisses. The command runs through `process_command()`; its first
+  `obj_prompt()` takes the preselect (`_preselect()`: if a tab offers the
+  object it returns it, or for handler prompts like inspect/inscribe calls
+  the handler with the object's label) and always clears it. `dungeon.c`
+  normal-command branch: clears the preselect after a command unless one
+  is queued; before `request_command()` queues `gear_reopen` unless
+  `hostile_in_view()` (new in `cmd2.c`, also used by explore).
+- Tested in the browser (own tab, 127.0.0.1, Beginner Hobbit Rogue): Enter
+  menu 14 groups, cursor pick (Game status → time), letter/key pick
+  (`b` `X` explore), Esc closes; items: eat (letter), read (Recall letter;
+  Teleportation via menu `r`), quaff (Potion of Sight bought at the
+  Alchemist, letter), wield (letter, slot menu), take off (letter in `e`),
+  drop (Shift, quantity prompt), examine (menu `I`, Ctrl+b); list reopens
+  after each. Roguelike (`!` `Y:rogue_like_commands`): menu shows roguelike
+  keys, item menu take off by `T`, wield by letter, explore from the menu.
+  Test IDBFS databases deleted.
+- ASan (native, pty, random keys weighted to Enter, `i`/`e`, letters,
+  Shift/Ctrl letters, 2/4/6/8, arrows, `X`, `<`/`>`; 4 seeds x (3000 new +
+  2000 restored)): menus drawn 8–73 times per run, no reports.
+- Open problems: the reopened list hides the action's message (it is in
+  `^P`); Tab/^E/^P/^Q/^F/^W in `i`/`e` now examine an item instead of
+  switching tab/toggling (use 4/6 or `/`); the cursor starts at the top
+  after the list reopens; other keys in the list are ignored (as before),
+  not run as commands; the item menu box can cover the list's right part.
+
+### Next: stage 4 (tiles)
+- Decision from stage 1: **Shockbolt** (own 16x16 covers only 59.4% of
+  r/k/f_info, `python3 web/tile-coverage.py`; below 95%).
+- Template: Zangband's Stage 4 (`~/Games/zangband/HANDOVER.md`):
+  `web/mkgraf-shb.py` writes `lib/pref/graf-shb.prf` (names + family
+  stand-ins), own mode `GRAPHICS_SHOCKBOLT` (`$GRAF` "shb"), sheet
+  `web/tiles.webp` from `~/Games/tactical-angband`, drawn by `js_pict` /
+  `qb.pict` in `web/frogcomposband.js`, big-tile mode. Frog's `graf-new.prf`
+  uses `K:tval:sval`: count and map objects by their `I:` line.

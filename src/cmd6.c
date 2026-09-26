@@ -1589,3 +1589,8 @@ void do_cmd_activate(void)
     do_cmd_activate_aux(prompt.obj);
 }
 
+
+/* RVIP: the item tests of the commands above, for the inventory item menus */
+bool obj_can_eat(obj_ptr obj) { return _can_eat(obj); }
+bool obj_can_quaff(obj_ptr obj) { return _can_quaff(obj); }
+bool obj_can_read(obj_ptr obj) { return _can_read(obj); }
