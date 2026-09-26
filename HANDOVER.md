@@ -361,3 +361,50 @@
   `build.sh` writes `$OUT/help.html` from it (replace the stub line).
 - Docs entry under `~/Desktop/Games/Roguelikes/Docs/` with both keysets
   (explore `X` original only; Enter menu), Tips section, Shockbolt credit.
+
+### Stage 6 (docs + sound): done 2026-09-26
+- **Docs** (`~/Desktop/Games/Roguelikes/Docs`, not git): `GAMES` entry
+  `frogcomposband.html` in `build-docs.py` (after Zangband; essentials,
+  complete list = original + roguelike keyset parsed from
+  `lib/help/command.txt` between `<topic:OriginalKeyset>` /
+  `<topic:RogueKeyset>` / `<topic:CommandCounts>`, `indent=1`; 162 keys;
+  sections About / Tips / In the browser / Credits),
+  `GUIDES['frogcomposband.html']` (first section "What makes FrogComposband
+  special") and `SAVING['frogcomposband.html']` in `guides.py`.
+  `parse_table()` now strips `<color:..>`/`</color>` tags (other 33 pages
+  unchanged byte for byte). Credits from `lib/file/credits.txt`; licence =
+  Angband/Moria notice (some files dual GPL 2 / Angband, e.g. `randname.c`;
+  no licence file in the tree); Shockbolt + Dubtrain as Zangband's.
+- **Help**: `web/make-help.py` (Zangband's, `PAGE='frogcomposband.html'`,
+  key box `X`, About this version: sulkasormi/frogcomposband master @
+  `3d28f6b1` + memmaker compare link) → `$OUT/help.html` in `build.sh`.
+  After a Docs edit: rebuild or `python3 web/make-help.py > web/dist/help.html`.
+- **Sound**: `web/sounds.py` (Zangband's + `glass` → `destroy`) writes the
+  web `sound.cfg` into the preload stage (all `angband_sound_name[]`
+  events, `walk` silent) and copies 103 Dubtrain wavs (10 MB) to
+  `dist/sound`. Upstream `lib/xtra/sound/sound.cfg` untouched (names wavs
+  Frog doesn't ship). JS/C unchanged. Music vendored:
+  `web/music/new_town.ogg`; `build.sh` no longer reads `../quickband`.
+- Tested (own tab, 127.0.0.1:8771): fresh origin → Sound off / Music off;
+  Help shows the guide (About … Credits, About this version, 162 keys);
+  Beginner quick start (`b` RET RET); Sound on (real click) → eat →
+  `sound/plm_eat_bite.wav` 200; Music on (real click) in town →
+  `music/new_town.ogg` 200; reload → both still on; no console errors.
+  IDBFS `/frogcomposband/lib/*` deleted from `help.html`. No C change, no
+  ASan run.
+- Open problems: only eat tested in the browser (same path for all
+  events); music plays on the whole surface (depth 0); birth menu keys are
+  `b`/`n`/`m` (not `a`), docs say "Beginner" only.
+
+### Next: stage 7 (publish)
+- README: upstream sulkasormi/frogcomposband `master` @ `3d28f6b1`
+  (7.1.salmiak.6, 2023); lineage Angband → Zangband → Hengband →
+  Entroband/Chengband → PosChengband → Composband → FrogComposband; the web
+  port (`web/`, `src/main-web.c`), controls (`X`, `<`/`>`, Enter menu, item
+  menus), credits (as the Docs entry).
+- `~/Games/roguelikes-index`: tree already has Hengband → PosChengband
+  ("2010s · Chris Timmons"; credits.txt says Chris Kousky) → FrogComposband
+  ("2010s", unlinked; no Composband node): link it (check the first-release year; 7.1.salmiak.6 is 2023). Index
+  card + tree entry as Zangband's (`3ec7ae8`, shrine `965e0f4`). og block by
+  hand. `web/deploy.sh` after the orchestrator creates the repo
+  (`memmaker/frogcomposband`) and pushes; W2 row.
