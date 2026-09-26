@@ -408,3 +408,45 @@
   card + tree entry as Zangband's (`3ec7ae8`, shrine `965e0f4`). og block by
   hand. `web/deploy.sh` after the orchestrator creates the repo
   (`memmaker/frogcomposband`) and pushes; W2 row.
+
+### Stage 7 (publish): done 2026-09-26
+- Live: https://ruzzoli.de/roguelikes/frogcomposband/ (quick start `b` RET
+  RET → town with tiles, Help opens; tested in own tab, then IDBFS
+  `/frogcomposband/lib/{apex,bone,save,user}` deleted on ruzzoli.de).
+- Repo: https://github.com/memmaker/frogcomposband (`master`), `README.md`
+  (`eeffe2d8`), og block by hand in `web/index.html` (`1a225846`, live).
+- Index (`~/Games/roguelikes-index`, `e479d7e` "Add FrogComposband"): card
+  after Zangband's, `frogcomposband.png` (60 Shockbolt monsters, 32px,
+  384x160), count 30; tree: PosChengband author fixed to Chris Kousky, new
+  ComPosband node (2010s · Gwilim Owen), FrogComposband linked (2018 · Antero
+  Sulka (sulkasormi) et al.). No Chengband node (Hengband → PosChengband
+  directly).
+- Lineage facts: `lib/file/credits.txt` (Chengband = Kousky, Zhang, Levy;
+  PosChengband = Chris Kousky; ComPosband = Gwilim Owen; Frog = Antero
+  Sulka); Frog's first release = commit "changed everything (FrogComposband's
+  initial unofficial beta release)" 2018-03-09 (tag `v7.0.strawberry`
+  2018-03-11); repo history starts at PosChengband 1.0.25 (2013-06-18).
+  Web: GitHub repo descriptions ("A variant of PosChengband and
+  Composband…"), Composband 7.1.0 announce Aug 2018
+  (angband.oook.cz/forum/showthread.php?t=9033), OwenGHB/composband. Not
+  verified: first years of PosChengband and ComPosband (tree says 2010s).
+
+### Next: stage 8 (shrine)
+- Template: `~/Games/roguelikes-index/shrine/zangband.html` + `shrine/zangband/`
+  (commit `965e0f4`: manual.html, changelog.txt, history.txt, faq.txt,
+  license.txt; index.html gets the Info button + tree ✦).
+- Manual: `lib/help/*.txt` (Frog markup `<topic:…>`, `<color:…>`; also
+  pre-built `lib/help/html/`); FAQ `lib/help/faq.txt`.
+- Licence: no licence file; Angband/Moria notice in source headers, some
+  newer files dual GPL 2 / Angband (e.g. `src/randname.c`).
+- Changelog: `lib/help/version.txt` (1480 lines, current) +
+  `lib/help/vers_old.txt` (1208); no upstream `CHANGES` file.
+- Credits: `lib/file/credits.txt`; readme `readme.txt`.
+- Wizard/debug: `ALLOW_WIZARD` defined in `src/z-config.h` (undef only for
+  `ANGBAND_LITE`); `^A` debug commands, `^W` wizard mode per
+  `lib/help/command.txt`; check it works in our build.
+- Verify with WebFetch: PosChengband/ComPosband first years, trivia.
+  Walkthrough: none known yet (check angband.live / oook forums).
+- Links: play https://ruzzoli.de/roguelikes/frogcomposband/, repo
+  https://github.com/memmaker/frogcomposband, upstream
+  https://github.com/sulkasormi/frogcomposband. Shrine og block by hand.
