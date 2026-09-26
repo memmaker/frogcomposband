@@ -602,6 +602,19 @@ int main(int argc, char *argv[])
 
 
 
+#ifdef USE_WEB
+	/* Browser front end, registered as "x11" so the X11 pref files load (RVIP W3) */
+	if (!done)
+	{
+		extern errr init_web(int, char**);
+		if (0 == init_web(argc, argv))
+		{
+			ANGBAND_SYS = "x11";
+			done = TRUE;
+		}
+	}
+#endif
+
 #ifdef USE_XAW
 	/* Attempt to use the "main-xaw.c" support */
 	if (!done && (!mstr || (streq(mstr, "xaw"))))
