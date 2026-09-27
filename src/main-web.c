@@ -333,15 +333,25 @@ static errr Term_xtra_web(int n, int v)
 	return (1);
 }
 
+/* No cursor box on the hero: the tile already shows where the player is */
+static bool web_curs_on_hero(int x, int y)
+{
+	point_t ui;
+
+	if (web_idx() || !character_generated || !character_dungeon) return FALSE;
+	ui = cave_xy_to_ui_pt(px, py);
+	return (ui.x == x) && (ui.y == y);
+}
+
 static errr Term_curs_web(int x, int y)
 {
-	js_curs(web_idx(), x, y, 1);
+	if (!web_curs_on_hero(x, y)) js_curs(web_idx(), x, y, 1);
 	return (0);
 }
 
 static errr Term_bigcurs_web(int x, int y)
 {
-	js_curs(web_idx(), x, y, 2);
+	if (!web_curs_on_hero(x, y)) js_curs(web_idx(), x, y, 2);
 	return (0);
 }
 
