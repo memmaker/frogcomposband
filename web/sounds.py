@@ -30,8 +30,13 @@ for line in open(os.path.join(PACK, 'sound.cfg'), encoding='latin-1'):
 cfg_path, out = sys.argv[1], sys.argv[2]
 os.makedirs(out, exist_ok=True)
 lines = ['# FrogComposband web build: Dubtrain Angband Sound Pack v3.1.0 (web/sounds.py)', '[Sound]']
+# DASP's own event names are wrong for attacks (RVIP-Finetuning, Sound):
+# its 'shoot' holds the melee swish and its 'miss' is a bow sample.
+FIXED = {'miss': ['plc_miss_swish.wav'],                           # melee miss: a swing
+         'shoot': ['plc_miss_arrow.wav', 'plc_miss_arrow2.wav']}   # missile fire: arrow flies
 for e in EVENTS:
     files = sorted({f for d in MAP.get(e, e).split() for f in pack.get(d, [])})
+    if e in FIXED: files = [f for f in FIXED[e] if os.path.exists(os.path.join(PACK, f))]
     assert files or e == 'walk', 'no sample for ' + e
     for f in files:
         shutil.copy(os.path.join(PACK, f), out)
