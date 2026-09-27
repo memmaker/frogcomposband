@@ -28,7 +28,7 @@
 	#bar .sp { flex: 1; }
 	#bar .hint { color: var(--dim); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 	#bar .hint kbd { font-size: 11px; line-height: 1.4; }
-	button { background: #22222a; color: var(--text); border: 1px solid var(--line); border-radius: 4px;
+	button, #bar select, .wm-btns select { background: #22222a; color: var(--text); border: 1px solid var(--line); border-radius: 4px;
 		padding: 2px 10px; font: inherit; cursor: pointer; }
 	button:hover { border-color: var(--accent); }
 	#status { position: fixed; left: 50%; top: 40px; transform: translateX(-50%); z-index: 5;
@@ -97,6 +97,7 @@
 	<span class="sep"></span>
 	<button id="btn-layout" title="Windows and layout">Windows ▾</button>
 	<button id="btn-tiles" title="Map as Shockbolt tiles or as text">Tiles: on</button>
+	<select id="sel-font" title="Font for the text windows (the map has its own in text mode)"><option value="">Font: default</option></select>
 	<button id="btn-audio" title="Sound effects and music">Audio ▾</button>
 	<input type="file" id="import-file" hidden>
 	<span class="sp"></span>
