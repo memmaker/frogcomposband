@@ -28,7 +28,7 @@ emcc -O2 -fcommon -std=gnu99 -DUSE_WEB -Isrc -w \
 	-sFORCE_FILESYSTEM -lidbfs.js -sENVIRONMENT=web \
 	--preload-file web/stage/lib@/frogcomposband/lib
 
-cp web/index.html "$HOME/Games/rvip-tools/web/rvip-wm.js" web/frogcomposband.js "$OUT/"
+cp web/index.html web/frogcomposband.js "$OUT/"
 # Shockbolt tiles (Angband 4.2 lib/tiles/shockbolt/64x64.png), lossless WebP, as in
 # ~/Games/tactical-angband/web/tiles.webp
 cp web/tiles.webp "$OUT/"
