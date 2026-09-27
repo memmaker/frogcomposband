@@ -400,8 +400,9 @@
 	function renderTiles() { $('btn-tiles').textContent = 'Tiles: ' + (L && L.text ? 'off' : 'on'); }
 
 	function renderAudio() {
-		$('btn-sound').textContent = 'Sound: ' + (audio.sound ? 'on' : 'off');
-		$('btn-music').textContent = 'Music: ' + (audio.music ? 'on' : 'off');
+		var c;
+		if ((c = $('chk-sound'))) c.checked = audio.sound;
+		if ((c = $('chk-music'))) c.checked = audio.music;
 	}
 
 	var qb = {
@@ -817,15 +818,32 @@
 	document.addEventListener('DOMContentLoaded', function () {
 		var mainCv = document.querySelector('#t-main canvas');
 		mainCv.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-		$('btn-export').onclick = exportSave;
-		$('btn-import').onclick = function () { $('import-file').click(); };
+		/* File and Audio: shared drop-downs (rvip-wm.js) */
+		var fileMenu = document.createElement('div');
+		[['Export save', exportSave], ['Import save', function () { $('import-file').click(); }], null,
+		 ['New game', newGame]].forEach(function (m) {
+			if (!m) { fileMenu.appendChild(document.createElement('hr')); return; }
+			var b = document.createElement('button');
+			b.textContent = m[0];
+			b.onclick = m[1];
+			fileMenu.appendChild(b);
+		});
+		RvipWM.dropdown($('btn-file'), fileMenu);
+		var audioMenu = document.createElement('div');
+		[['sound', 'Sound effects'], ['music', 'Music']].forEach(function (m) {
+			var l = document.createElement('label'), c = document.createElement('input');
+			c.type = 'checkbox';
+			c.id = 'chk-' + m[0];
+			c.onchange = function () { toggleAudio(m[0]); };
+			l.appendChild(c);
+			l.appendChild(document.createTextNode(' ' + m[1]));
+			audioMenu.appendChild(l);
+		});
+		RvipWM.dropdown($('btn-audio'), audioMenu);
 		$('import-file').onchange = function () { if (this.files[0]) importSave(this.files[0]); this.value = ''; };
-		$('btn-new').onclick = newGame;
 		$('btn-help').onclick = toggleHelp;
 		$('help-close').onclick = toggleHelp;
 		$('btn-tiles').onclick = toggleTiles;
-		$('btn-sound').onclick = function () { toggleAudio('sound'); };
-		$('btn-music').onclick = function () { toggleAudio('music'); };
 		renderAudio();
 
 		/* Buttons never take the keyboard focus away from the game */
