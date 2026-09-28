@@ -1,0 +1,70 @@
+# Release builds for Linux and macOS (terminal, curses frontend) and
+# Windows (native Windows frontend, cross-compiled with MinGW).
+# Runs only on a version tag (git tag v1.0 && git push origin v1.0) or by hand.
+name: release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  GAME: frogcomposband
+  EXE: frogcomposband
+  FILES: lib README.md readme.txt
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            runs-on: ubuntu-latest
+            deps: sudo apt-get update && sudo apt-get install -y libncurses-dev gcc-mingw-w64-i686
+            build: mkdir -p nc && ln -sf "$(command -v ncursesw6-config || echo $(brew --prefix ncurses)/bin/ncursesw6-config)" nc/ncursesw5-config && PATH=$PWD/nc:$PATH sh ./configure --with-no-install --disable-x11 --disable-sdl CFLAGS="-O2 -w -fcommon" && make && cp src/frogcomposband .
+          - os: windows
+            runs-on: ubuntu-latest
+            deps: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64 gcc-mingw-w64-i686
+            build: sh ./configure --host=i686-w64-mingw32 --enable-win --disable-curses --disable-x11 --disable-sdl --with-no-install CFLAGS="-O2 -w -fcommon" && make && cp src/frogcomposband.exe .
+          - os: macos
+            runs-on: macos-latest
+            deps: brew install ncurses
+            build: mkdir -p nc && ln -sf "$(command -v ncursesw6-config || echo $(brew --prefix ncurses)/bin/ncursesw6-config)" nc/ncursesw5-config && PATH=$PWD/nc:$PATH sh ./configure --with-no-install --disable-x11 --disable-sdl CFLAGS="-O2 -w -fcommon" && make && cp src/frogcomposband . 
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: ${{ matrix.deps }}
+      - run: ${{ matrix.build }}
+      - name: package
+        shell: bash
+        run: |
+          d=$GAME-${{ matrix.os }}
+          mkdir $d
+          for f in $FILES; do [ -e "$f" ] && cp -r "$f" $d/; done
+          if [ ${{ matrix.os }} = windows ]; then
+            cp $EXE.exe $d/
+            zip -qr $d.zip $d
+          else
+            cp $EXE $d/
+            printf '#!/bin/sh\n# Terminal version: run in a terminal window of at least 80x24.\ncd "$(dirname "$0")" && exec ./%s -mgcu "$@"\n' $EXE > $d/play.sh
+            chmod +x $d/play.sh
+            tar czf $d.tar.gz $d
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.GAME }}-${{ matrix.os }}
+          path: ${{ env.GAME }}-${{ matrix.os }}.*
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.GAME }}-*
