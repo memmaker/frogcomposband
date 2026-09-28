@@ -2291,7 +2291,7 @@ static void process_world_aux_curse(void)
         }
 
         /* Allergy */
-        if ((p_ptr->cursed & OFC_ALLERGY) && (!p_ptr->unwell) && (one_in_(888)) && (!get_race()->flags & RACE_IS_NONLIVING))
+        if ((p_ptr->cursed & OFC_ALLERGY) && (!p_ptr->unwell) && (one_in_(888)) && (!(get_race()->flags & RACE_IS_NONLIVING)))
         {
             msg_print("Your eyes suddenly feel very itchy...");
             disturb(0,0);
