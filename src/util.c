@@ -3387,9 +3387,8 @@ static const struct { char cmd; cptr name; } cmd_menu_list[] =
     { 'd', "Drop an item" }, { 'k', "Destroy an item" },
     { 'w', "Wear/wield equipment" }, { 't', "Take off equipment" },
     { 'W', "Swap ring fingers" },
-    { 0, "Movement" },
-    { ';', "Walk (with pickup)" }, { '-', "Walk (flip pickup)" },
-    { '.', "Run" }, { '<', "Go up staircase" }, { '>', "Go down staircase" },
+    { 0, "Movement" },   /* no steps or runs (; - .): moves are keys, not menu items */
+    { '<', "Go up staircase" }, { '>', "Go down staircase" },
     { 'X', "Auto-explore" }, { 'H', "Travel to nearest item" },
     { '`', "Travel to a location" }, { 'J', "Resume travelling" },
     { 0, "Resting and searching" },
