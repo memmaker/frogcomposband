@@ -35,7 +35,7 @@ void do_cmd_go_up(void)
     /* Verify stairs */
     if (!have_flag(f_ptr->flags, FF_LESS))
     {
-        /* RVIP: travel to the nearest known up staircase, take it there */
+        /* RVIP: travel to the nearest known up staircase; < again there takes it */
         explore_to_stairs(TRUE);
 
         return;
@@ -126,7 +126,7 @@ void do_cmd_go_down(void)
     /* Verify stairs */
     if (!have_flag(f_ptr->flags, FF_MORE))
     {
-        /* RVIP: travel to the nearest known down staircase, take it there */
+        /* RVIP: travel to the nearest known down staircase; > again there takes it */
         explore_to_stairs(FALSE);
 
         return;
@@ -4320,6 +4320,15 @@ void explore_step(void)
     bool locked = FALSE;
     s16b this_o_idx;
 
+#ifdef USE_WEB
+    /* Paint every step: show the last one, then wait 40 ms */
+    if (auto_explore)
+    {
+        Term_fresh();
+        Term_xtra(TERM_XTRA_DELAY, 40);
+    }
+#endif
+
     auto_explore = FALSE;
 
     /* Stood on these objects now */
@@ -4427,13 +4436,9 @@ void explore_to_stairs(bool up)
     if (travel.run) explore_stairs = up ? 1 : -1;
 }
 
-/* Travel to stairs ended: take them if we are on them */
+/* Travel to stairs ended: stop on them; the player presses < or > again
+   to take them (auto-stairs only walks) */
 void explore_stairs_arrive(void)
 {
-    int stairs = explore_stairs;
-
     explore_stairs = 0;
-    if (!have_flag(f_info[cave[py][px].feat].flags, (stairs > 0) ? FF_LESS : FF_MORE)) return;
-    if (stairs > 0) do_cmd_go_up();
-    else do_cmd_go_down();
 }

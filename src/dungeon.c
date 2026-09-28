@@ -4984,7 +4984,7 @@ static void process_player(void)
             travel_step();
         }
 
-        /* Travel to stairs ended (RVIP): take them if there */
+        /* Travel to stairs ended (RVIP): stop there */
         else if (explore_stairs)
         {
             explore_stairs_arrive();

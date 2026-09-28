@@ -47,8 +47,8 @@ KEY_HINTS = [
     ('?', 'In-game help: every command, with explanations'),
     ('X', 'Auto-explore: walk to the nearest unexplored spot (original keyset)'),
     ('Enter', 'Menu of all commands'),
-    ('<', 'Go up (walks to the nearest known staircase)'),
-    ('>', 'Go down (walks to the nearest known staircase)'),
+    ('<', 'Go up (off the stairs: walks to the nearest known one, press again to take it)'),
+    ('>', 'Go down (off the stairs: walks to the nearest known one, press again to take it)'),
     ('Ctrl+S', 'Save'),
 ]
 
