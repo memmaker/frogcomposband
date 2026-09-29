@@ -48,6 +48,9 @@ struct term_win
 
     byte *vta;
     char *vtc;
+
+    /* Term_clear() ran since the last Term_save() (main-web.c: a full-screen pop-up) */
+    bool cleared;
 };
 
 
@@ -201,6 +204,9 @@ struct term
 
     term_win *tmp;
     term_win *mem;
+
+    /* Term_save() ran; main-web.c clears it at the next command prompt (a pop-up) */
+    bool saved;
 
     void (*init_hook)(term *t);
     void (*nuke_hook)(term *t);

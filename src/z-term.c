@@ -1852,6 +1852,9 @@ errr Term_clear(void)
     /* Cursor usable */
     Term->scr->cu = 0;
 
+    /* A whole new screen */
+    Term->scr->cleared = TRUE;
+
     /* Cursor to the top left */
     Term->scr->cx = Term->scr->cy = 0;
 
@@ -2187,6 +2190,10 @@ errr Term_save(void)
 
     /* Grab */
     term_win_copy(Term->mem, Term->scr, w, h);
+
+    /* The screen from here on is a new one (a pop-up over the saved one) */
+    Term->scr->cleared = FALSE;
+    Term->saved = TRUE;
 
     /* Success */
     return (0);
